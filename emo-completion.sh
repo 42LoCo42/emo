@@ -39,7 +39,7 @@ _emo() {
 		*)
 			IFS="," read -rd '' -a parts <<< "${subcommands["${COMP_WORDS[1]}"]}"
 			part="${parts[$((w - 3))]}"
-			mapfile -t COMPREPLY <<< "$(IFS=$'\n' compgen -W "$(_emo_list)" "${COMP_WORDS[$((w - 1))],,}")"
+			mapfile -t COMPREPLY <<< "$(IFS=$'\n' compgen -W "$(_emo_list)" "${COMP_WORDS[$((w - 1))]}")"
 			;;
 	esac
 }
