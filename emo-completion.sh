@@ -34,12 +34,12 @@ _emo() {
 	case "$w" in
 		1) ;;
 		2)
-			mapfile -t COMPREPLY <<< "$(compgen -W "${!subcommands[*]}" "${COMP_WORDS[1]}")"
+			mapfile -t COMPREPLY <<< "$(compgen -W "${!subcommands[*]}" "${COMP_WORDS[1],,}")"
 			;;
 		*)
 			IFS="," read -rd '' -a parts <<< "${subcommands["${COMP_WORDS[1]}"]}"
 			part="${parts[$((w - 3))]}"
-			mapfile -t COMPREPLY <<< "$(IFS=$'\n' compgen -W "$(_emo_list)" "${COMP_WORDS[$((w - 1))]}")"
+			mapfile -t COMPREPLY <<< "$(IFS=$'\n' compgen -W "$(_emo_list)" "${COMP_WORDS[$((w - 1))],,}")"
 			;;
 	esac
 }
@@ -59,4 +59,4 @@ _emo_strip_pfx() {
 	done
 }
 
- complete -F _emo emo
+complete -F _emo emo

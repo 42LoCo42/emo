@@ -120,7 +120,7 @@ cmd_set-tag() {
 	hash="$(cmd_name-to-hash "$1")"
 	dir="$path_tags_dir/$hash"
 	md "$dir"
-	echo "$3" >> "$dir/$2"
+	echo "$3" > "$dir/$2"
 }
 
 cmd_get-tag() {
