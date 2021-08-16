@@ -8,13 +8,13 @@ error() {
 }
 
 push_queue() {
-    queue+=("$1")
+	queue+=("$1")
 }
 
 pop_queue() {
 	[ -z "${queue[*]}" ] && error "empty queue" && return
-    echo "next ${queue[0]}"
-    queue=("${queue[@]:1}")
+	echo "next ${queue[0]}"
+	queue=("${queue[@]:1}")
 }
 
 print_queue() {
@@ -30,7 +30,7 @@ exec 1>&"${yell[1]}"- # write stdout to yell
 
 while read -ru "${yell[0]}" cmd args; do
 	case "$cmd" in
-		exit)  break ;;
+		exit)  echo "exit"; break ;;
 		queue) print_queue ;;
 		add)   push_queue "$args" ;;
 		next)  pop_queue ;;

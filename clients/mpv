@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+nc "$@" | while read -r cmd args; do
+	[ "$cmd" == "exit" ] && exit
+	[ "$cmd" == "next" ] || continue
+	kill "$(jobs -p)" || echo "↑ Not an error"
+	mpv "$args" &
+done
