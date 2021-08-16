@@ -28,9 +28,7 @@ list-something() {
 	path="$1"
 	skip=$((${#path} + 2)) # 2 skips leading /
 	shift
-	find "$path" -mindepth 1 "$@" | while read -r i; do
-		tail -c+$skip <<< "$i"
-	done
+	find "$path" -mindepth 1 "$@" | cut -c "$skip-"
 }
 
 build-hash-to-name() {
