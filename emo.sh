@@ -152,8 +152,11 @@ cmd_getcmds() {
 }
 
 cmd_getpaths() {
-	false && usage ""
-	declare | grep "^path_"
+	false && usage "[path to get]"
+	path="${1:-}"
+	output="$(declare | grep "^path_$path")"
+	[ -n "$path" ] && output="${output#*=}"
+	echo "$output"
 }
 
 usage() {

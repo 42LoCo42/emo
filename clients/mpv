@@ -1,7 +1,18 @@
 #!/usr/bin/env bash
-nc "$@" | while read -r cmd args; do
+nc_args=("$@")
+
+song_dir="$(emo getpaths songs)"
+coproc nc (nc "${nc_args[@]}")
+trap 'pkill -P $$' EXIT
+
+play() {
+	mpv --no-video --no-terminal "$song_dir/$1" && \
+		echo "next" | nc "${nc_args[@]}"
+}
+
+while read -ru "${nc[0]}" cmd args; do
 	[ "$cmd" == "exit" ] && exit
 	[ "$cmd" == "next" ] || continue
-	kill "$(jobs -p)" || echo "↑ Not an error"
-	mpv "$args" &
+	pid="$(pgrep -P "$$" bash)" && pkill -P "$pid"
+	play "$args" &
 done

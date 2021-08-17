@@ -18,6 +18,7 @@ pop_queue() {
 }
 
 print_queue() {
+	[ -z "${queue[*]}" ] && error "empty queue" && return
 	for i in "${!queue[@]}"; do
 		echo "queued $i ${queue[i]}"
 	done
