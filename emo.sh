@@ -39,7 +39,7 @@ build-hash-to-name() {
 	done <<< "$(
 		emo list-songs \
 		| sed -E 's|(.*)|sha256sum "\1"|' \
-		| parallel -j "$(nproc)" \
+		| parallel -j "$(nproc)" --will-cite \
 	)"
 	cd "$OLDPWD"
 }
