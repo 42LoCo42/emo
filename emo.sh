@@ -33,10 +33,15 @@ list-something() {
 
 build-hash-to-name() {
 	((${#htn[@]} > 0)) && return
-	while read -r i; do
-		hash="$(cmd_name-to-hash "$i")"
-		htn["$hash"]="$i"
-	done <<< "$(cmd_list-songs)"
+	cd "$path_songs_dir"
+	while read -r hash song; do
+		htn["$hash"]="$song"
+	done <<< "$(
+		emo list-songs \
+		| sed -E 's|(.*)|sha256sum "\1"|' \
+		| parallel -j "$(nproc)" \
+	)"
+	cd "$OLDPWD"
 }
 
 cmd_cleanup() {
