@@ -13,7 +13,7 @@ push_queue() {
 
 pop_queue() {
 	[ -z "${queue[*]}" ] && error "empty queue" && return
-	echo "next ${queue[0]}"
+	echo "next-is ${queue[0]}"
 	queue=("${queue[@]:1}")
 }
 
@@ -24,18 +24,20 @@ print_queue() {
 	done
 }
 
-coproc yell { exec yell "$@"; }
+coproc yell { exec yell "$@" -r; }
 declare yell_PID
 trap 'kill $yell_PID' EXIT
 exec 1>&"${yell[1]}"- # write stdout to yell
 
 while read -ru "${yell[0]}" cmd args; do
+	[ -z "$cmd" ] && continue
 	case "$cmd" in
-		exit)  echo "exit"; break ;;
-		queue) print_queue ;;
-		add)   push_queue "$args" ;;
-		next)  pop_queue ;;
-		clear) queue=() ;;
-		*)     error "unknown command"
+		client*) ;;
+		exit)    echo "exit"; break ;;
+		queue)   print_queue ;;
+		add)     push_queue "$args" ;;
+		next)    pop_queue ;;
+		clear)   queue=() ;;
+		*)       error "unknown command"
 	esac
 done
