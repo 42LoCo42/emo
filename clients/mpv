@@ -17,7 +17,7 @@ play() {
 
 stop() {
 	pid="$(pgrep -P "$$" bash)" && pkill -P "$pid"
-	pause=1
+	pause=0
 }
 
 pause=1
@@ -28,6 +28,7 @@ while read -ru "${nc[0]}" cmd; do
 		"next-is "*)
 			stop
 			play "${cmd#next-is }" &
+			pause=1
 			;;
 		"client mpv toggle")
 			echo \
