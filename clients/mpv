@@ -17,6 +17,7 @@ play() {
 
 stop() {
 	pid="$(pgrep -P "$$" bash)" && pkill -P "$pid"
+	pause=1
 }
 
 pause=1
