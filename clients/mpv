@@ -5,8 +5,10 @@ song_dir="$(emo getpaths songs)"
 coproc nc (nc "${nc_args[@]}")
 trap 'pkill -P $$' EXIT
 
+socket="/tmp/mpvsoc-emo"
+
 play() {
-	{ mpv --input-ipc-server=/tmp/mpvsoc-emo --no-video "$song_dir/$1" >/dev/null; } 2>&1 \
+	{ mpv --input-ipc-server="$socket" --no-video "$song_dir/$1" >/dev/null; } 2>&1 \
 	| while read -rd "$(printf '\r')" line; do
 		[ -z "$line" ] && continue
 		echo "client mpv ${line#*A: }"
@@ -17,13 +19,21 @@ stop() {
 	pid="$(pgrep -P "$$" bash)" && pkill -P "$pid"
 }
 
+pause=1
 while read -ru "${nc[0]}" cmd; do
 	case "$cmd" in
-		"exit") exit ;;
+		"exit") stop; exit ;;
 		"error empty queue") stop ;;
 		"next-is "*)
 			stop
 			play "${cmd#next-is }" &
+			;;
+		"client mpv toggle")
+			echo \
+				'{ "command": ["set_property", "pause",' \
+				"$(sed "s|1|true|; s|0|false|" <<< "$pause")" \
+				'] }' | socat - "$socket"
+			((pause = 1 - pause))
 			;;
 	esac
 done
