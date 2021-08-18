@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
+set -o pipefail
 nc_args=("$@")
 
 song_dir="$(emo getpaths songs)"
 coproc nc (nc "${nc_args[@]}")
+trap 'stop; exit' EXIT
 
 socket="/tmp/mpvsoc-emo"
 
@@ -15,7 +17,8 @@ play() {
 }
 
 stop() {
-	pid="$(pgrep -P "$$" bash)" && pkill -P "$pid"
+	read -r play_pid <<< "$(pgrep -P "$$" bash)"
+	kill "$(ps -f | awk '$3 =='"$play_pid"' && $8 == "mpv" {print $2}')"
 	pause=0
 }
 
