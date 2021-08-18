@@ -8,6 +8,7 @@ trap 'pkill -P $$' EXIT
 socket="/tmp/mpvsoc-emo"
 
 play() {
+	trap 'pkill -P $$' EXIT
 	{ mpv --input-ipc-server="$socket" --no-video "$song_dir/$1" >/dev/null; } 2>&1 \
 	| while read -rd "$(printf '\r')" line; do
 		[ -z "$line" ] && continue
