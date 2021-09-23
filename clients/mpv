@@ -18,7 +18,8 @@ play() {
 
 stop() {
 	read -r play_pid <<< "$(pgrep -P "$$" bash)"
-	kill "$(ps -f | awk '$3 =='"$play_pid"' && $8 == "mpv" {print $2}')"
+	[ -n "$play_pid" ] && \
+		kill "$(ps -f | awk '$3 =='"$play_pid"' && $8 == "mpv" {print $2}')"
 	pause=0
 }
 
