@@ -30,7 +30,7 @@ while read -ru "${nc[0]}" cmd; do
 		"error empty queue") stop ;;
 		"next-is "*)
 			stop
-			next_is="${cmd#next-is}"
+			next_is="${cmd#next-is }"
 			play "$next_is" &
 			pause=1
 			;;
@@ -44,6 +44,7 @@ while read -ru "${nc[0]}" cmd; do
 		"client mpv restart")
 			stop
 			play "$next_is" &
+			pause=1
 			;;
 	esac
 done
