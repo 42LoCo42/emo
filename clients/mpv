@@ -30,7 +30,8 @@ while read -ru "${nc[0]}" cmd; do
 		"error empty queue") stop ;;
 		"next-is "*)
 			stop
-			play "${cmd#next-is }" &
+			next_is="${cmd#next-is}"
+			play "$next_is" &
 			pause=1
 			;;
 		"client mpv toggle")
@@ -39,6 +40,10 @@ while read -ru "${nc[0]}" cmd; do
 				"$(sed "s|1|true|; s|0|false|" <<< "$pause")" \
 				'] }' | socat - "$socket"
 			((pause = 1 - pause))
+			;;
+		"client mpv restart")
+			stop
+			play "$next_is" &
 			;;
 	esac
 done
