@@ -12,7 +12,7 @@ play() {
 	mpv --input-ipc-server="$socket" --no-video "$song_dir/$1" 2>&1 >/dev/null \
 	| while read -rd "$(printf '\r')" line; do
 		[ -z "$line" ] && continue
-		echo "client mpv ${line#*A: }"
+		echo "client mpv status ${line#*A: }"
 	done | nc "${nc_args[@]}" && echo "next" | nc "${nc_args[@]}"
 }
 
