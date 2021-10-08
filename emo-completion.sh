@@ -33,7 +33,6 @@ _emo_list() {
 		song*)   compgen -W "$(emo list-songs)" "$current_word" ;;
 		group*)  compgen -W "$(emo list-groups)" "$current_word" ;;
 		tag*)    compgen -W "$(emo list-tags "${COMP_WORDS[2]}")" "$current_word" ;;
-		hash*)   compgen -W "$(cat "$(emo getpaths hashes)")" "$current_word" ;;
 	esac
 }
 

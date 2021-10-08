@@ -1,17 +1,15 @@
 #!/usr/bin/env bash
 
-[ "$1" == "--get-weight" ] && {
-	hash="$(emo name-to-hash "$2")"
-	dir="$(emo getpaths tags)/$hash"
-	echo "$((
-		$(tr '\n' ' ' < "$dir/count") +
-		$(cat "$dir/boost")
-	)) $2"
-	exit
-}
-
 echo "Loading all data..." >&2
-mapfile -t weights <<< "$(emo list-songs | sed -E 's|(.*)|'"$0"' --get-weight "\1"|' | parallel --will-cite)"
+weights=()
+get_weight_string() {
+	{
+		emo get-tag "$1" boost count | paste -sd+ | bc
+		echo "$1"
+	} | paste -d ' ' - -
+}
+export -f get_weight_string
+mapfile -t weights <<< "$(emo list-songs | parallel get_weight_string)"
 list="$(printf '%s\n' "${weights[@]}" | cut -d ' ' -f 1)"
 
 generate() {
