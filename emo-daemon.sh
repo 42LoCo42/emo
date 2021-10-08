@@ -38,6 +38,11 @@ while read -ru "${yell[0]}" cmd args; do
 		add)     push_queue "$args" ;;
 		next)    pop_queue ;;
 		clear)   queue=() ;;
+		emo-cmd)
+			read -ra args <<< "$args"
+			printf "emo-cmd-response "
+			emo "${args[@]}"
+			;;
 		*)       error "unknown command"
 	esac
 done
