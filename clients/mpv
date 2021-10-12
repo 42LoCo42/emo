@@ -8,7 +8,7 @@ trap 'stop; exit' EXIT
 socket="/tmp/mpvsoc-emo"
 
 play() {
-	mpv --input-ipc-server="$socket" --no-video --mute=yes "$song_dir/$1" 2>&1 >/dev/null \
+	mpv --input-ipc-server="$socket" --no-video "$song_dir/$1" 2>&1 >/dev/null \
 	| while read -rd "$(printf '\r')" line; do
 		[ -z "$line" ] && continue
 		[ "$line" == "killed" ] && return
