@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -o pipefail
 nc_args=("$@")
 
 song_dir="$(emo getpaths songs)"
@@ -9,21 +8,31 @@ trap 'stop; exit' EXIT
 socket="/tmp/mpvsoc-emo"
 
 play() {
-	mpv --input-ipc-server="$socket" --no-video "$song_dir/$1" 2>&1 >/dev/null \
+	mpv --input-ipc-server="$socket" --no-video --mute=yes "$song_dir/$1" 2>&1 >/dev/null \
 	| while read -rd "$(printf '\r')" line; do
 		[ -z "$line" ] && continue
+		[ "$line" == "killed" ] && return
 		echo "client mpv status ${line#*A: }"
-	done | nc "${nc_args[@]}" && echo "next" | nc "${nc_args[@]}"
+	done | nc "${nc_args[@]}"
+	echo "next" | nc "${nc_args[@]}"
+}
+
+ipc() {
+	printf '{"command": [%s]}\n' "$1" | socat - "$socket"
 }
 
 stop() {
-	read -r play_pid <<< "$(pgrep -P "$$" bash)"
-	[ -n "$play_pid" ] && \
-		kill "$(ps -f | awk '$3 =='"$play_pid"' && $8 == "mpv" {print $2}')"
-	pause=0
+	ipc '"run", "echo", "killed"'
+	ipc '"quit"'
+	paused=1
 }
 
-pause=1
+toggle() {
+	((paused = 1 - paused))
+	ipc '"set_property", "pause", '"$(sed "s|1|true|; s|0|false|" <<< "$paused")"''
+}
+
+paused=0
 while read -ru "${nc[0]}" cmd; do
 	case "$cmd" in
 		"exit") stop; exit ;;
@@ -31,20 +40,13 @@ while read -ru "${nc[0]}" cmd; do
 		"next-is "*)
 			stop
 			next_is="${cmd#next-is }"
+			paused=0
 			play "$next_is" &
-			pause=1
 			;;
-		"client mpv toggle")
-			echo \
-				'{ "command": ["set_property", "pause",' \
-				"$(sed "s|1|true|; s|0|false|" <<< "$pause")" \
-				'] }' | socat - "$socket"
-			((pause = 1 - pause))
-			;;
+		"client mpv toggle") toggle ;;
 		"client mpv restart")
-			stop
-			play "$next_is" &
-			pause=1
+			ipc '"seek", 0'
+			((paused)) && toggle
 			;;
 	esac
 done
