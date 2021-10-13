@@ -8,13 +8,21 @@ trap 'stop; exit' EXIT
 socket="/tmp/mpvsoc-emo"
 
 play() {
-	mpv --input-ipc-server="$socket" --no-video "$song_dir/$1" 2>&1 >/dev/null \
-	| while read -rd "$(printf '\r')" line; do
-		[ -z "$line" ] && continue
-		[ "$line" == "killed" ] && return
+	file="$(mktemp)"
+	trap 'rm "$file"' EXIT
+
+	# shellcheck disable=SC2016
+	mpv \
+		--input-ipc-server="$socket" \
+		--no-video \
+		--term-status-msg='A: ${time-pos} / ${duration} (${percent-pos}%)\x0c' \
+		"$song_dir/$1/file" \
+		2>&1 \
+	| while read -rd $'\f' line; do
+		grep -q "killed" <<< "$line" && rm "$file" && continue
 		echo "client mpv status ${line#*A: }"
 	done | nc "${nc_args[@]}"
-	echo "next" | nc "${nc_args[@]}"
+	[ -e "$file" ] && echo "next" | nc "${nc_args[@]}"
 }
 
 ipc() {
@@ -22,7 +30,7 @@ ipc() {
 }
 
 stop() {
-	ipc '"run", "echo", "killed"'
+	ipc '"run", "echo", "-e", "killed\f"'
 	ipc '"quit"'
 	paused=1
 }
