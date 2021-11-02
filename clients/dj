@@ -34,6 +34,9 @@ while read -ru "${nc[0]}" cmd; do
 				emo set-tag "$song" count "$((count + 1))"
 				echo "Completed $song, count was $count"
 			}
+			echo "queue" >&"${nc[1]}"
+			;;
+		"error empty queue")
 			generate
 			song="${cmd#next-is }"
 			;;
