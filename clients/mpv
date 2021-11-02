@@ -44,7 +44,6 @@ paused=0
 while read -ru "${nc[0]}" cmd; do
 	case "$cmd" in
 		"exit") stop; exit ;;
-		"error empty queue") stop ;;
 		"next-is "*)
 			stop
 			next_is="${cmd#next-is }"
