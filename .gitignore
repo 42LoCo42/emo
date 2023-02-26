@@ -1,0 +1,4 @@
+/emo.db
+
+/static/**
+!/static/.keep
