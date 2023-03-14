@@ -53,10 +53,12 @@ func main() {
 	}
 
 	// setup database
-	db.AutoMigrate(
+	if err := db.AutoMigrate(
 		&User{},
 		&Song{},
-	)
+	); err != nil {
+		die(err, "Automatic migration failed")
+	}
 
 	// create admin:admin
 	admin := User{
