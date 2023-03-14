@@ -3,12 +3,14 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"crypto/sha512"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
-	"runtime"
+	"strings"
 
 	"github.com/jamesruan/sodium"
 	"golang.org/x/crypto/argon2"
@@ -16,6 +18,7 @@ import (
 )
 
 func main() {
+	// input username
 	fmt.Fprint(os.Stderr, "Username: ")
 	username, err := bufio.NewReader(os.Stdin).ReadBytes('\n')
 	if err != nil {
@@ -23,6 +26,7 @@ func main() {
 	}
 	username = bytes.TrimSpace(username)
 
+	// input password
 	fmt.Fprint(os.Stderr, "Password: ")
 	password, err := term.ReadPassword(int(os.Stdin.Fd()))
 	if err != nil {
@@ -30,21 +34,49 @@ func main() {
 	}
 	fmt.Fprintln(os.Stderr)
 
-	var seed sodium.SignSeed
+	// create keypair seed via strong hashing
+	var seed sodium.BoxSeed
 	seed.Bytes = argon2.IDKey(
 		password,
-		sha512.New().Sum(append(append(username, 0), password...)),
+		username,
 		uint32(sodium.CryptoPWHashOpsLimitInteractive),
-		uint32(sodium.CryptoPWHashMemLimitInteractive >> 10),
-		uint8(runtime.NumCPU()),
+		uint32(sodium.CryptoPWHashMemLimitInteractive>>10),
+		1,
 		uint32(seed.Size()),
 	)
 
-	kp := sodium.SeedSignKP(seed)
-	signature := base64.URLEncoding.EncodeToString(
-		sodium.Bytes(username).SignDetached(kp.SecretKey).Bytes,
-	)
-
+	// create keypair from seed
+	kp := sodium.SeedBoxKP(sodium.BoxSeed(seed))
 	log.Printf("pubkey: %#v", kp.PublicKey.Bytes)
-	log.Print("signature: ", signature)
+
+	// perform login request
+	resp, err := http.PostForm(
+		"http://localhost:37812/login",
+		url.Values{
+			"username": []string{string(username)},
+		},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// get response body
+	buf := new(strings.Builder)
+	if _, err := io.Copy(buf, resp.Body); err != nil {
+		log.Fatal(err)
+	}
+
+	// get encrypted token from base64-encoded response body
+	encryptedToken, err := base64.StdEncoding.DecodeString(buf.String())
+	if err != nil {
+		log.Fatal(encryptedToken)
+	}
+
+	// decrypt token with keypair
+	token, err := sodium.Bytes(encryptedToken).SealedBoxOpen(kp)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Print(string(token))
 }

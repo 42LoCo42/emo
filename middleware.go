@@ -38,11 +38,11 @@ var (
 				}
 
 				subject, err := token.Claims.GetSubject()
-				if err == nil {
-					log.Print("Username: ", subject)
-				} else {
-					log.Print("Couldn't get username/subject!")
+				if err != nil {
+					log.Print("Couldn't get username/subject! ", err)
+					return ctx.Error(http.StatusUnauthorized)
 				}
+				log.Print("Username: ", subject)
 
 				if !token.Valid {
 					log.Print("Invalid token!")
