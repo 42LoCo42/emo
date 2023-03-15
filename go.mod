@@ -2,8 +2,11 @@ module github.com/42LoCo42/emo
 
 go 1.20
 
+replace github.com/aerogo/aero v1.3.59 => ./aero-context-data
+
 require (
 	github.com/aerogo/aero v1.3.59
+	github.com/akyoto/uuid v1.1.3
 	github.com/golang-jwt/jwt/v5 v5.0.0-rc.1
 	github.com/jamesruan/sodium v1.0.14
 	github.com/pkg/errors v0.9.1
@@ -23,7 +26,6 @@ require (
 	github.com/akyoto/hash v0.5.0 // indirect
 	github.com/akyoto/stringutils v0.3.1 // indirect
 	github.com/akyoto/tty v0.1.4 // indirect
-	github.com/akyoto/uuid v1.1.3 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect

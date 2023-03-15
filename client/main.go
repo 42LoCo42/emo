@@ -12,19 +12,20 @@ import (
 	"os"
 	"strings"
 
+	"github.com/42LoCo42/emo/shared"
 	"github.com/jamesruan/sodium"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/term"
 )
 
 func main() {
-	// input username
-	fmt.Fprint(os.Stderr, "Username: ")
-	username, err := bufio.NewReader(os.Stdin).ReadBytes('\n')
+	// input user ID
+	fmt.Fprint(os.Stderr, "User ID: ")
+	userID, err := bufio.NewReader(os.Stdin).ReadBytes('\n')
 	if err != nil {
 		log.Fatal(err)
 	}
-	username = bytes.TrimSpace(username)
+	userID = bytes.TrimSpace(userID)
 
 	// input password
 	fmt.Fprint(os.Stderr, "Password: ")
@@ -38,7 +39,7 @@ func main() {
 	var seed sodium.BoxSeed
 	seed.Bytes = argon2.IDKey(
 		password,
-		username,
+		userID,
 		uint32(sodium.CryptoPWHashOpsLimitInteractive),
 		uint32(sodium.CryptoPWHashMemLimitInteractive>>10),
 		1,
@@ -53,7 +54,7 @@ func main() {
 	resp, err := http.PostForm(
 		"http://localhost:37812/login",
 		url.Values{
-			"username": []string{string(username)},
+			shared.PARAM_NAME: []string{string(userID)},
 		},
 	)
 	if err != nil {

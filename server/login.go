@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/42LoCo42/emo/shared"
 	"github.com/aerogo/aero"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jamesruan/sodium"
@@ -14,13 +15,13 @@ import (
 func login(ctx aero.Context) error {
 	var err error
 
-	// get username from query
-	username := ctx.Request().Internal().FormValue("username")
-	log.Print("Authentication attempt from ", username)
+	// get userID from query
+	userID := ctx.Request().Internal().FormValue(shared.PARAM_NAME)
+	log.Print("Login attempt from ", userID)
 
 	// get user from database
-	var user User
-	if err := db.First(&user, "name = ?", username).Error; err != nil {
+	user := User{ID: userID}
+	if err := db.First(&user, user).Error; err != nil {
 		log.Print("No such user: ", err)
 		return ctx.Error(http.StatusUnauthorized)
 	}
@@ -37,7 +38,7 @@ func login(ctx aero.Context) error {
 	// create & sign token for user
 	token := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.RegisteredClaims{
 		Issuer:   "emo",
-		Subject:  username,
+		Subject:  userID,
 		IssuedAt: jwt.NewNumericDate(time.Now()),
 	})
 	ss, err := token.SignedString(jwtKey)

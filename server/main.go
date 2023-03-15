@@ -9,6 +9,8 @@ import (
 	"github.com/pkg/errors"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+
+	"github.com/42LoCo42/emo/shared"
 )
 
 var (
@@ -40,14 +42,17 @@ func main() {
 	var err error
 
 	// get JWT key from environment
-	jwtKeyS, ok := os.LookupEnv("EMO_KEY")
+	jwtKeyS, ok := os.LookupEnv(shared.EMO_KEY_VAR)
 	if !ok {
-		die(errors.New("Could not get JWT key from EMO_KEY environment variable"), "")
+		die(errors.Errorf(
+			"Could not get JWT key from %s environment variable",
+			shared.EMO_KEY_VAR,
+		), "")
 	}
 	jwtKey = []byte(jwtKeyS)
 
 	// connect to database
-	db, err = gorm.Open(sqlite.Open("emo.db"))
+	db, err = gorm.Open(sqlite.Open(shared.DATABASE))
 	if err != nil {
 		die(err, "Could not open database")
 	}
@@ -57,12 +62,13 @@ func main() {
 		&User{},
 		&Song{},
 	); err != nil {
-		die(err, "Automatic migration failed")
+		die(err, "Automatic database migration failed")
 	}
 
 	// create admin:admin
 	admin := User{
-		Name: "admin",
+		ID:   "admin",
+		Name: "Administrator",
 		PublicKey: []byte{
 			0x74, 0x20, 0x61, 0x1b, 0xcc, 0xad, 0x16, 0xcd,
 			0x41, 0x5b, 0x74, 0x3b, 0x29, 0xf2, 0x94, 0xf3,
@@ -76,14 +82,25 @@ func main() {
 	// create aero application
 	app := aero.New()
 	app.Config.Ports.HTTP = 37812
-	app.Use(logRequests, secureEndpointCheck)
+	app.Use(
+		logRequests,
+		parseAuthToken,
+		secureEndpointCheck,
+		adminEndpointCheck,
+	)
 
 	// serve static files
-	app.Get("/*file", func(ctx aero.Context) error {
-		return ctx.File("static/" + ctx.Get("file"))
-	})
+	// app.Get("/*file", func(ctx aero.Context) error {
+	// 	return ctx.File(path.Join(shared.STATIC_DIR, ctx.Get("file")))
+	// })
 
-	app.Post("/login", login)
+	app.Post(shared.ENDPOINT_LOGIN, login)
+
+	// songs endpoint
+	app.Get(shared.ENDPOINT_SONGS, getSongs)
+	app.Get(shared.ENDPOINT_SONGS+"/*"+shared.PARAM_NAME, getSongFile)
+	app.Post(shared.ENDPOINT_SONGS, uploadSong)
+	app.Delete(shared.ENDPOINT_SONGS, deleteSong)
 
 	app.Run()
 }

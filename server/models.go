@@ -2,23 +2,20 @@ package main
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 type User struct {
-	gorm.Model
-	Name      string `gorm:"unique;notNull"`
+	ID        string `gorm:"primaryKey"`
+	Name      string
 	PublicKey []byte `gorm:"unique;notNull"`
 	Admin     bool
-	Songs     []*Song `gorm:"many2many:user_songs;"`
+	Songs     []*Song `gorm:"many2many:user_songs;" json:"-"`
 }
 
 type Song struct {
-	gorm.Model
-	Path     string `gorm:"unique;notNull"`
-	Name     string `gorm:"notNull"`
+	File     string `gorm:"primaryKey"`
+	Name     string `gorm:"unique;notNull"`
 	Artist   string
 	Duration time.Duration
-	Users    []*User `gorm:"many2many:user_songs;"`
+	Users    []*User `gorm:"many2many:user_songs;" json:"-"`
 }
