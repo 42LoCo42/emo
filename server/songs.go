@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -15,7 +14,7 @@ import (
 )
 
 func songPath(song *Song) string {
-	return path.Join(shared.SONG_DIR, song.File)
+	return path.Join(shared.SONG_DIR, song.ID)
 }
 
 func getSongs(ctx aero.Context) error {
@@ -24,20 +23,20 @@ func getSongs(ctx aero.Context) error {
 	if name == "" {
 		// return all songs
 		var songs []Song
+
 		if err := db.Find(&songs).Error; err != nil {
-			return ctx.Error(http.StatusInternalServerError, err)
+			return onDBError(ctx, err, "No songs found!")
 		}
+
 		return ctx.JSON(songs)
 	} else {
 		// return selected song
 		song := Song{Name: name}
+
 		if err := db.First(&song, song).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return ctx.Error(http.StatusNotFound, err)
-			} else {
-				return ctx.Error(http.StatusInternalServerError, err)
-			}
+			return onDBError(ctx, err, "Song not found")
 		}
+
 		return ctx.JSON(song)
 	}
 }
@@ -51,14 +50,16 @@ func uploadSong(ctx aero.Context) error {
 	song := Song{Name: name}
 
 	if err := db.Transaction(func(tx *gorm.DB) error {
+		// create DB entry for song
 		if err := tx.
 			Where(song).
-			Attrs(Song{File: uuid.New().String()}).
+			Attrs(Song{ID: uuid.New().String()}).
 			FirstOrCreate(&song).
 			Error; err != nil {
 			return err
 		}
 
+		// create song folder
 		if err := os.MkdirAll(shared.SONG_DIR, 0755); err != nil {
 			log.Printf(
 				"Could not create song directory %s: %s",
@@ -67,6 +68,7 @@ func uploadSong(ctx aero.Context) error {
 			return err
 		}
 
+		// create song file
 		path := songPath(&song)
 		file, err := os.Create(path)
 		if err != nil {
@@ -75,6 +77,7 @@ func uploadSong(ctx aero.Context) error {
 		}
 		defer file.Close()
 
+		// write request body into song file
 		if _, err := io.Copy(file, ctx.Request().Internal().Body); err != nil {
 			log.Printf("Could not write song file %s: %s", path, err)
 			return err
@@ -93,20 +96,19 @@ func deleteSong(ctx aero.Context) error {
 	name := ctx.Request().Internal().FormValue(shared.PARAM_NAME)
 	song := Song{Name: name}
 
+	// find song
 	if err := db.First(&song, song).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ctx.Error(http.StatusNotFound, err)
-		} else {
-			return ctx.Error(http.StatusInternalServerError, err)
-		}
+		return onDBError(ctx, err, "Song not found")
 	}
 
 	if err := db.Transaction(func(tx *gorm.DB) error {
+		// delete DB entry for song
 		if err := tx.Delete(song).Error; err != nil {
 			log.Printf("Could not delete song %s from DB: %s", name, err)
 			return err
 		}
 
+		// delete song file
 		path := songPath(&song)
 		if err := os.Remove(path); err != nil {
 			log.Printf(
@@ -121,5 +123,5 @@ func deleteSong(ctx aero.Context) error {
 		return ctx.Error(http.StatusInternalServerError, err)
 	}
 
-	return ctx.Text("ok")
+	return nil
 }

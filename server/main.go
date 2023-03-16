@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/aerogo/aero"
@@ -57,10 +58,15 @@ func main() {
 		die(err, "Could not open database")
 	}
 
+	// setup custom associations
+	if err := db.SetupJoinTable(User{}, "Songs", Stat{}); err != nil {
+		die(err, "Could not setup stat table")
+	}
+
 	// setup database
 	if err := db.AutoMigrate(
-		&User{},
-		&Song{},
+		User{},
+		Song{},
 	); err != nil {
 		die(err, "Automatic database migration failed")
 	}
@@ -102,5 +108,22 @@ func main() {
 	app.Post(shared.ENDPOINT_SONGS, uploadSong)
 	app.Delete(shared.ENDPOINT_SONGS, deleteSong)
 
+	// stats endpoint
+	app.Get(shared.ENDPOINT_STATS, getStats)
+	app.Post(shared.ENDPOINT_STATS, setStat)
+	app.Delete(shared.ENDPOINT_STATS, deleteStat)
+
 	app.Run()
+}
+
+func onDBError(
+	ctx aero.Context,
+	err error,
+	extra ...any,
+) error {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return ctx.Error(http.StatusNotFound, extra...)
+	} else {
+		return ctx.Error(http.StatusInternalServerError, extra...)
+	}
 }

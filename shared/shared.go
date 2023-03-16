@@ -14,10 +14,9 @@ var (
 	ENDPOINT_ADMIN  = "/admin"
 	ENDPOINT_SECURE = "/secure"
 	ENDPOINT_SONGS  = ENDPOINT_SECURE + "/songs"
+	ENDPOINT_STATS  = ENDPOINT_SECURE + "/stats"
 
-	KEY_IS_AUTHED = "is_authed"
-	KEY_IS_ADMIN  = "is_admin"
-	KEY_USERID    = "userid"
-
-	PARAM_NAME = "name"
+	PARAM_NAME  = "name"
+	PARAM_COUNT = "count"
+	PARAM_BOOST = "boost"
 )

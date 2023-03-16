@@ -30,6 +30,9 @@ type ContextData struct {
 
 func parseAuthToken(h aero.Handler) aero.Handler {
 	return func(ctx aero.Context) error {
+		// set initial context data for all clients
+		ctx.SetData(&ContextData{Authed: false})
+
 		// deny on true returned
 		if func() bool {
 			// get token string - empty/no token isn't an error
@@ -62,10 +65,9 @@ func parseAuthToken(h aero.Handler) aero.Handler {
 			log.Print("User ID: ", subject)
 
 			// authenticate user in current context
-			ctx.SetData(ContextData{
-				Authed: true,
-				UserID: subject,
-			})
+			data := ctx.Data().(*ContextData)
+			data.Authed = true
+			data.UserID = subject
 
 			return false
 		}() {
@@ -87,8 +89,8 @@ func authCheck(
 		log.Print("Access to secure endpoint ", endpoint)
 
 		// deny if not authed
-		data, ok := ctx.Data().(ContextData)
-		if !ok || !data.Authed {
+		data := ctx.Data().(*ContextData)
+		if !data.Authed {
 			log.Printf("Not authenticated!")
 			return true
 		}
