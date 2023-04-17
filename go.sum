@@ -1,3 +1,5 @@
+github.com/42LoCo42/aero-context-data v0.0.0-20230416112314-d2fd4959a50c h1:4YiyhEvIm44nYRuFB5hGT7fsaSrfeEL9grFF1/xBr7Y=
+github.com/42LoCo42/aero-context-data v0.0.0-20230416112314-d2fd4959a50c/go.mod h1:ehwj+mb117xQRTvp11jlnrRNPgbcYL6s6aBk9wbIZ0o=
 github.com/aerogo/csp v0.1.10 h1:2PJf9gkdRvCFYOA0baTUyp34vwPp5ZJJX8GZRCYc/nM=
 github.com/aerogo/csp v0.1.10/go.mod h1:UrxbTXv+X9kJatyuLeu2yGFpOiWVPjbqA/DzqxSVhl8=
 github.com/aerogo/http v1.1.3 h1:cvwOYL+zNEfNHvJcX6A6OgUwQ4KROlu8ypuQEQc1HtU=

@@ -2,8 +2,6 @@ module github.com/42LoCo42/emo
 
 go 1.20
 
-replace github.com/aerogo/aero v1.3.59 => ./aero-context-data
-
 require (
 	github.com/aerogo/aero v1.3.59
 	github.com/akyoto/uuid v1.1.3
@@ -33,3 +31,5 @@ require (
 	github.com/zeebo/xxh3 v1.0.1 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 )
+
+replace github.com/aerogo/aero => github.com/42LoCo42/aero-context-data v0.0.0-20230416112314-d2fd4959a50c

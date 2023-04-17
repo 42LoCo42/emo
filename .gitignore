@@ -1,4 +1,2 @@
-/emo.db
-
-/static/**
-!/static/.keep
+/server/static
+/server/emo.db
