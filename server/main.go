@@ -59,20 +59,20 @@ func main() {
 	}
 
 	// setup custom associations
-	if err := db.SetupJoinTable(User{}, "Songs", Stat{}); err != nil {
+	if err := db.SetupJoinTable(shared.User{}, "Songs", shared.Stat{}); err != nil {
 		die(err, "Could not setup stat table")
 	}
 
 	// setup database
 	if err := db.AutoMigrate(
-		User{},
-		Song{},
+		shared.User{},
+		shared.Song{},
 	); err != nil {
 		die(err, "Automatic database migration failed")
 	}
 
 	// create admin:admin
-	admin := User{
+	admin := shared.User{
 		ID:   "admin",
 		Name: "Administrator",
 		PublicKey: []byte{

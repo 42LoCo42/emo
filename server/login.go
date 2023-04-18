@@ -20,7 +20,7 @@ func login(ctx aero.Context) error {
 	log.Print("Login attempt from ", userID)
 
 	// get user from database
-	user := User{ID: userID}
+	user := shared.User{ID: userID}
 	if err := db.First(&user, user).Error; err != nil {
 		log.Print("No such user: ", err)
 		return ctx.Error(http.StatusUnauthorized)

@@ -98,7 +98,7 @@ func authCheck(
 		// if this endpoint requires admin privileges:
 		if adminOly {
 			// get user from DB
-			user := User{ID: data.UserID}
+			user := shared.User{ID: data.UserID}
 
 			// deny if user isn't an admin
 			if err := db.First(&user).Error; err != nil || !user.Admin {

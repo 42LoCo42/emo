@@ -10,8 +10,8 @@ import (
 var token string
 
 func main() {
-	Login(InputCreds())
-	// Login([]byte("admin"), []byte("admin"))
+	// Login(InputCreds())
+	Login([]byte("admin"), []byte("admin"))
 
 	log.Print()
 

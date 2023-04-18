@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func songPath(song *Song) string {
+func songPath(song *shared.Song) string {
 	return path.Join(shared.SONG_DIR, song.ID)
 }
 
@@ -22,7 +22,7 @@ func getSongs(ctx aero.Context) error {
 
 	if name == "" {
 		// return all songs
-		var songs []Song
+		var songs []shared.Song
 
 		if err := db.Find(&songs).Error; err != nil {
 			return onDBError(ctx, err, "No songs found!")
@@ -31,7 +31,7 @@ func getSongs(ctx aero.Context) error {
 		return ctx.JSON(songs)
 	} else {
 		// return selected song
-		song := Song{Name: name}
+		song := shared.Song{Name: name}
 
 		if err := db.First(&song, song).Error; err != nil {
 			return onDBError(ctx, err, "Song not found")
@@ -47,13 +47,13 @@ func getSongFile(ctx aero.Context) error {
 
 func uploadSong(ctx aero.Context) error {
 	name := ctx.Request().Internal().FormValue(shared.PARAM_NAME)
-	song := Song{Name: name}
+	song := shared.Song{Name: name}
 
 	if err := db.Transaction(func(tx *gorm.DB) error {
 		// create DB entry for song
 		if err := tx.
 			Where(song).
-			Attrs(Song{ID: uuid.New().String()}).
+			Attrs(shared.Song{ID: uuid.New().String()}).
 			FirstOrCreate(&song).
 			Error; err != nil {
 			return err
@@ -94,7 +94,7 @@ func uploadSong(ctx aero.Context) error {
 
 func deleteSong(ctx aero.Context) error {
 	name := ctx.Request().Internal().FormValue(shared.PARAM_NAME)
-	song := Song{Name: name}
+	song := shared.Song{Name: name}
 
 	// find song
 	if err := db.First(&song, song).Error; err != nil {

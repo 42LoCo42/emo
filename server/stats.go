@@ -12,14 +12,14 @@ import (
 func getStats(ctx aero.Context) error {
 	name := ctx.Request().Internal().FormValue(shared.PARAM_NAME)
 	data := db.
-		Model(Stat{}).
+		Model(shared.Stat{}).
 		Joins("join songs on stats.song_id = songs.id").
 		Select("songs.id, songs.name, stats.count, stats.boost").
-		Where(Stat{UserID: ctx.Data().(*ContextData).UserID})
+		Where(shared.Stat{UserID: ctx.Data().(*ContextData).UserID})
 
 	if name == "" {
 		// return all stats
-		var stats []StatQuery
+		var stats []shared.StatQuery
 
 		if err := data.Find(&stats).Error; err != nil {
 			return onDBError(ctx, err, "No stats found!")
@@ -28,7 +28,7 @@ func getStats(ctx aero.Context) error {
 		return ctx.JSON(stats)
 	} else {
 		// return selected stat
-		var stat StatQuery
+		var stat shared.StatQuery
 
 		res := data.Find(&stat, "songs.name = ?", name)
 		if err := res.Error; err != nil {
@@ -50,19 +50,19 @@ func setStat(ctx aero.Context) error {
 	}
 
 	// get song, we need the ID later
-	song := Song{Name: name}
+	song := shared.Song{Name: name}
 	if db.Find(&song, song).RowsAffected == 0 {
 		return onDBError(ctx, gorm.ErrRecordNotFound, "song not found!")
 	}
 
 	// stat with conditions
-	stat := Stat{
+	stat := shared.Stat{
 		UserID: ctx.Data().(*ContextData).UserID,
 		SongID: song.ID,
 	}
 	if err := db.
 		// stat attributes for when we create a new one
-		Attrs(Stat{
+		Attrs(shared.Stat{
 			Count: 0,
 			Boost: 1,
 		}).
@@ -102,11 +102,11 @@ func deleteStat(ctx aero.Context) error {
 	res := db.
 		Where("user_id = ?", ctx.Data().(*ContextData).UserID).
 		Where("song_id = (?)", db.
-			Model(Song{}).
+			Model(shared.Song{}).
 			Select("id").
 			Where("name = ?", name),
 		).
-		Delete(Stat{})
+		Delete(shared.Stat{})
 	if err := res.Error; err != nil {
 		return onDBError(ctx, err, "delete stat failed!")
 	}
