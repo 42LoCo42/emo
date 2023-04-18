@@ -1,2 +1,3 @@
-/server/static
-/server/emo.db
+/static
+/emo.db
+/result
