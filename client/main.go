@@ -1,35 +1,48 @@
 package main
 
 import (
+	"context"
 	"log"
-	"net/http"
+	"os"
 
-	"github.com/42LoCo42/emo/shared"
+	"github.com/42LoCo42/emo/client/song"
+	"github.com/42LoCo42/emo/client/stat"
+	"github.com/42LoCo42/emo/client/util"
+	"github.com/cristalhq/acmd"
 )
 
-var token string
-
 func main() {
-	// Login(InputCreds())
-	Login([]byte("admin"), []byte("admin"))
+	cmds := []acmd.Command{
+		{
+			Name:        "song",
+			Subcommands: song.Subcommand,
+		},
+		{
+			Name:        "stat",
+			Subcommands: stat.Subcommand,
+		},
+		{
+			Name:        "login",
+			Description: "Log in to an emo server",
+			ExecFunc: func(ctx context.Context, args []string) error {
+				tokenPath, err := util.TokenFilePath()
+				if err != nil {
+					return err
+				}
 
-	log.Print()
-
-	StatQuery()
-}
-
-func StatQuery() {
-	result, err := JsonRequest[[]shared.StatQuery](
-		http.MethodGet, shared.ENDPOINT_STATS)
-	if err != nil {
-		log.Fatal(err)
+				token := util.Login(util.InputCreds())
+				return os.WriteFile(tokenPath, []byte(token), 0600)
+			},
+		},
 	}
 
-	for _, stat := range *result {
-		log.Printf(
-			"Song %s (ID: %s) - Count %d, Boost %d",
-			stat.Name, stat.ID,
-			stat.Count, stat.Boost,
-		)
+	r := acmd.RunnerOf(cmds, acmd.Config{
+		AppName:        "emo",
+		AppDescription: "easy music organizer",
+		Version:        "0.0.1",
+	})
+
+	if err := r.Run(); err != nil {
+		log.Fatal("Error: ", err)
 	}
 }

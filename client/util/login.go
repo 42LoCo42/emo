@@ -1,17 +1,48 @@
-package main
+package util
 
 import (
 	"encoding/base64"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path"
 
 	"github.com/42LoCo42/emo/shared"
 	"github.com/jamesruan/sodium"
 	"golang.org/x/crypto/argon2"
 )
 
-func Login(userID, password []byte) {
+var token string = ""
+
+func Token() string {
+	if token == "" {
+		tokenPath, err := TokenFilePath()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		tokenBytes, err := os.ReadFile(tokenPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		token = string(tokenBytes)
+	}
+
+	return token
+}
+
+func TokenFilePath() (string, error) {
+	confDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+
+	return path.Join(confDir, "emo-token"), nil
+}
+
+func Login(userID, password []byte) string {
 	// create keypair seed via strong hashing
 	var seed sodium.BoxSeed
 	seed.Bytes = argon2.IDKey(
@@ -25,10 +56,10 @@ func Login(userID, password []byte) {
 
 	// create keypair from seed
 	kp := sodium.SeedBoxKP(sodium.BoxSeed(seed))
-	log.Printf("Pubkey: %#v", kp.PublicKey.Bytes)
 
 	// perform login request
 	encodedToken, err := Request(
+		"",
 		http.MethodPost,
 		fmt.Sprintf(
 			"%s?%s=%s",
@@ -42,9 +73,9 @@ func Login(userID, password []byte) {
 	}
 
 	// get encrypted token from base64-encoded response body
-	encryptedToken, err := base64.StdEncoding.DecodeString(encodedToken)
-	if err != nil {
-		log.Fatal(encryptedToken)
+	encryptedToken := make([]byte, base64.StdEncoding.DecodedLen(len(encodedToken)))
+	if _, err := base64.StdEncoding.Decode(encryptedToken, encodedToken); err != nil {
+		log.Fatal(err)
 	}
 
 	// decrypt token with keypair
@@ -53,6 +84,5 @@ func Login(userID, password []byte) {
 		log.Fatal(err)
 	}
 
-	token = string(tokenBytes)
-	log.Print("Token: ", token)
+	return string(tokenBytes)
 }
