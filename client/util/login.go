@@ -8,7 +8,6 @@ import (
 
 	"github.com/42LoCo42/emo/api"
 	"github.com/jamesruan/sodium"
-	"golang.org/x/crypto/argon2"
 )
 
 func Login(
@@ -19,17 +18,7 @@ func Login(
 	token []byte,
 	err error,
 ) {
-	var seed sodium.BoxSeed
-	seed.Bytes = argon2.IDKey(
-		password,
-		username,
-		uint32(sodium.CryptoPWHashOpsLimitInteractive),
-		uint32(sodium.CryptoPWHashMemLimitInteractive>>10),
-		1,
-		uint32(seed.Size()),
-	)
-
-	kp := sodium.SeedBoxKP(seed)
+	key := MakeKey(username, password)
 
 	raw, err := client.GetLoginUser(context.Background(), string(username))
 	if err != nil {
@@ -37,7 +26,7 @@ func Login(
 	}
 
 	if raw.StatusCode != http.StatusOK {
-		return nil, errors.New("login request not successful")
+		return nil, errors.New("login request failed")
 	}
 
 	resp, err := api.ParseGetLoginUserResponse(raw)
@@ -50,7 +39,7 @@ func Login(
 		return nil, err
 	}
 
-	token, err = sodium.Bytes(encrypted).SealedBoxOpen(kp)
+	token, err = sodium.Bytes(encrypted).SealedBoxOpen(key)
 	if err != nil {
 		return nil, err
 	}

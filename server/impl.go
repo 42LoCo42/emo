@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -22,7 +24,7 @@ type Server struct {
 func (s *Server) GetLoginUser(ctx echo.Context, name string) error {
 	var user api.User
 	if err := s.db.One("Name", name, &user); err != nil {
-		return errors.Wrap(err, "user lookup failed")
+		return err
 	}
 
 	pubkey := sodium.BoxPublicKey{
@@ -60,7 +62,7 @@ func (s *Server) DeleteStatsId(ctx echo.Context, id uint64) error {
 
 // DeleteUsersName implements api.ServerInterface
 func (s *Server) DeleteUsersName(ctx echo.Context, name string) error {
-	panic("unimplemented")
+	return s.db.DeleteStruct(&api.User{Name: name})
 }
 
 // GetSongs implements api.ServerInterface
@@ -100,12 +102,20 @@ func (s *Server) GetStatsUserUser(ctx echo.Context, user string) error {
 
 // GetUsers implements api.ServerInterface
 func (s *Server) GetUsers(ctx echo.Context) error {
-	panic("unimplemented")
+	var users []api.User
+	if err := s.db.All(&users); err != nil {
+		return err
+	}
+	return ctx.JSON(http.StatusOK, users)
 }
 
 // GetUsersName implements api.ServerInterface
 func (s *Server) GetUsersName(ctx echo.Context, name string) error {
-	panic("unimplemented")
+	var user api.User
+	if err := s.db.One("Name", name, &user); err != nil {
+		return err
+	}
+	return ctx.JSON(http.StatusOK, user)
 }
 
 // PostSongs implements api.ServerInterface
@@ -120,5 +130,15 @@ func (s *Server) PostStats(ctx echo.Context) error {
 
 // PostUsers implements api.ServerInterface
 func (s *Server) PostUsers(ctx echo.Context) error {
-	panic("unimplemented")
+	var user api.User
+	if err := json.NewDecoder(ctx.Request().Body).Decode(&user); err != nil {
+		return errors.Wrap(err, "could not decode body")
+	}
+
+	if err := s.db.Save(&user); err != nil {
+		return errors.Wrap(err, "could not save user")
+	}
+
+	log.Printf("User %s updated", user.Name)
+	return nil
 }

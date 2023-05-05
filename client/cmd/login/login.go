@@ -1,18 +1,15 @@
-package cmd
+package login
 
 import (
-	"fmt"
 	"log"
-	"os"
 
 	"github.com/42LoCo42/emo/api"
 	"github.com/42LoCo42/emo/client/util"
 	"github.com/42LoCo42/emo/shared"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
-var LoginCMD = &cobra.Command{
+var Login = &cobra.Command{
 	Use:   "login username",
 	Short: "Log in to an emo server",
 	Args:  cobra.ExactArgs(1),
@@ -24,12 +21,10 @@ var LoginCMD = &cobra.Command{
 			shared.Die(err, "could not create client")
 		}
 
-		fmt.Fprint(os.Stderr, "Password: ")
-		password, err := term.ReadPassword(int(os.Stdin.Fd()))
+		password, err := util.AskPassword()
 		if err != nil {
-			shared.Die(err, "could not read credentials")
+			shared.Die(err, "could not read password")
 		}
-		fmt.Fprintln(os.Stderr)
 
 		token, err := util.Login(client, []byte(username), password)
 		if err != nil {

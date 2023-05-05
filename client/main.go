@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/42LoCo42/emo/client/cmd"
+	"github.com/42LoCo42/emo/client/cmd/login"
+	"github.com/42LoCo42/emo/client/cmd/users"
+	"github.com/42LoCo42/emo/client/util"
 	"github.com/spf13/cobra"
 )
 
 var (
-	address string
-
 	rootCmd = &cobra.Command{
 		Use:   "emo",
 		Short: "easy music organizer",
@@ -18,8 +18,17 @@ var (
 )
 
 func init() {
+	rootCmd.PersistentFlags().StringVar(
+		&util.Address,
+		"address",
+		"",
+		"Address of the emo server",
+	)
+	rootCmd.MarkPersistentFlagRequired("address")
+
 	rootCmd.AddCommand(
-		cmd.LoginCMD,
+		login.Login,
+		users.Init(),
 	)
 }
 

@@ -12,7 +12,7 @@ import (
 )
 
 func errorHandler(err error, c echo.Context) {
-	if errors.Unwrap(errors.Unwrap(err)) == storm.ErrNotFound {
+	if err == storm.ErrNotFound {
 		log.Print(err)
 		c.NoContent(http.StatusNotFound)
 	} else {
