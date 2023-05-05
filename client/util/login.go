@@ -1,88 +1,59 @@
 package util
 
 import (
+	"context"
 	"encoding/base64"
-	"fmt"
-	"log"
+	"errors"
 	"net/http"
-	"os"
-	"path"
 
-	"github.com/42LoCo42/emo/shared"
+	"github.com/42LoCo42/emo/api"
 	"github.com/jamesruan/sodium"
 	"golang.org/x/crypto/argon2"
 )
 
-var token string = ""
-
-func Token() string {
-	if token == "" {
-		tokenPath, err := TokenFilePath()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		tokenBytes, err := os.ReadFile(tokenPath)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		token = string(tokenBytes)
-	}
-
-	return token
-}
-
-func TokenFilePath() (string, error) {
-	confDir, err := os.UserConfigDir()
-	if err != nil {
-		return "", err
-	}
-
-	return path.Join(confDir, "emo-token"), nil
-}
-
-func Login(userID, password []byte) string {
-	// create keypair seed via strong hashing
+func Login(
+	client *api.Client,
+	username,
+	password []byte,
+) (
+	token []byte,
+	err error,
+) {
 	var seed sodium.BoxSeed
 	seed.Bytes = argon2.IDKey(
 		password,
-		userID,
+		username,
 		uint32(sodium.CryptoPWHashOpsLimitInteractive),
 		uint32(sodium.CryptoPWHashMemLimitInteractive>>10),
 		1,
 		uint32(seed.Size()),
 	)
 
-	// create keypair from seed
-	kp := sodium.SeedBoxKP(sodium.BoxSeed(seed))
+	kp := sodium.SeedBoxKP(seed)
 
-	// perform login request
-	encodedToken, err := Request(
-		"",
-		http.MethodPost,
-		fmt.Sprintf(
-			"%s?%s=%s",
-			shared.ENDPOINT_LOGIN,
-			shared.PARAM_NAME,
-			string(userID),
-		),
-	)
+	raw, err := client.GetLoginUser(context.Background(), string(username))
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	// get encrypted token from base64-encoded response body
-	encryptedToken := make([]byte, base64.StdEncoding.DecodedLen(len(encodedToken)))
-	if _, err := base64.StdEncoding.Decode(encryptedToken, encodedToken); err != nil {
-		log.Fatal(err)
+	if raw.StatusCode != http.StatusOK {
+		return nil, errors.New("login request not successful")
 	}
 
-	// decrypt token with keypair
-	tokenBytes, err := sodium.Bytes(encryptedToken).SealedBoxOpen(kp)
+	resp, err := api.ParseGetLoginUserResponse(raw)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	return string(tokenBytes)
+	encrypted, err := base64.StdEncoding.DecodeString(string(resp.Body))
+	if err != nil {
+		return nil, err
+	}
+
+	token, err = sodium.Bytes(encrypted).SealedBoxOpen(kp)
+	if err != nil {
+		return nil, err
+	}
+
+	return token, nil
 }

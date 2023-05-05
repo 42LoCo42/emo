@@ -1,48 +1,31 @@
 package main
 
 import (
-	"context"
-	"log"
+	"fmt"
 	"os"
 
-	"github.com/42LoCo42/emo/client/song"
-	"github.com/42LoCo42/emo/client/stat"
-	"github.com/42LoCo42/emo/client/util"
-	"github.com/cristalhq/acmd"
+	"github.com/42LoCo42/emo/client/cmd"
+	"github.com/spf13/cobra"
 )
 
-func main() {
-	cmds := []acmd.Command{
-		{
-			Name:        "song",
-			Subcommands: song.Subcommand,
-		},
-		{
-			Name:        "stat",
-			Subcommands: stat.Subcommand,
-		},
-		{
-			Name:        "login",
-			Description: "Log in to an emo server",
-			ExecFunc: func(ctx context.Context, args []string) error {
-				tokenPath, err := util.TokenFilePath()
-				if err != nil {
-					return err
-				}
+var (
+	address string
 
-				token := util.Login(util.InputCreds())
-				return os.WriteFile(tokenPath, []byte(token), 0600)
-			},
-		},
+	rootCmd = &cobra.Command{
+		Use:   "emo",
+		Short: "easy music organizer",
 	}
+)
 
-	r := acmd.RunnerOf(cmds, acmd.Config{
-		AppName:        "emo",
-		AppDescription: "easy music organizer",
-		Version:        "0.0.1",
-	})
+func init() {
+	rootCmd.AddCommand(
+		cmd.LoginCMD,
+	)
+}
 
-	if err := r.Run(); err != nil {
-		log.Fatal("Error: ", err)
+func main() {
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 }
