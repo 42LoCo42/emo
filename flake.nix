@@ -17,12 +17,22 @@
             };
           })
           names));
-        packages = with pkgs; [
-          bashInteractive
-          libsodium.dev
+
+        nativeBuildInputs = with pkgs; [
           oapi-codegen
+          pkg-config
           ref-merge.outputs.defaultPackage.${system}
           yq
+        ];
+
+        buildInputs = with pkgs; [
+          libsodium
+        ];
+
+        shellTools = with pkgs; [
+          bashInteractive
+          go
+          gopls
         ];
       in
       {
@@ -30,21 +40,17 @@
           pname = "emo";
           version = "1.0.0-indev";
           src = ./.;
+          vendorSha256 = "sha256-5lp8LA9KpyFqlA15gg3+/61BT8C1V9HJQw0dh/u3IRk=";
 
-          vendorSha256 = pkgs.lib.fakeSha256;
+          inherit nativeBuildInputs buildInputs;
 
-          nativeBuildInputs = packages;
-
-          PKG_CONFIG_PATH = "${pkgs.libsodium.dev}/lib/pkgconfig";
+          prePatch = "bash generate.sh";
         };
 
         apps = mkApps [ "client" "server" ];
 
         devShell = pkgs.mkShell {
-          packages = packages ++ (with pkgs; [
-            go
-            gopls
-          ]);
+          packages = nativeBuildInputs ++ buildInputs ++ shellTools;
         };
       });
 }
