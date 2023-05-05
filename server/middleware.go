@@ -3,128 +3,69 @@ package main
 import (
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/42LoCo42/emo/shared"
-	"github.com/aerogo/aero"
+	"github.com/asdine/storm/v3"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/labstack/echo/v4"
+	"github.com/pkg/errors"
 )
 
-func logRequests(h aero.Handler) aero.Handler {
-	return func(ctx aero.Context) error {
+func errorHandler(err error, c echo.Context) {
+	if errors.Unwrap(errors.Unwrap(err)) == storm.ErrNotFound {
+		log.Print(err)
+		c.NoContent(http.StatusNotFound)
+	} else {
+		log.Printf(
+			"Error in %s %s: %s",
+			c.Request().Method,
+			c.Request().URL,
+			err,
+		)
+		shared.Trace(err)
+		c.NoContent(http.StatusInternalServerError)
+	}
+}
+
+func logRequest(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
 		log.Printf(
 			"%s: %s %s",
-			ctx.Request().Internal().RemoteAddr,
-			ctx.Request().Method(),
-			ctx.Path(),
+			c.RealIP(),
+			c.Request().Method,
+			c.Request().URL,
 		)
-
-		return h(ctx)
+		return next(c)
 	}
 }
 
-type ContextData struct {
-	Authed bool
-	UserID string
-}
-
-func parseAuthToken(h aero.Handler) aero.Handler {
-	return func(ctx aero.Context) error {
-		// set initial context data for all clients
-		ctx.SetData(&ContextData{Authed: false})
-
-		// deny on true returned
-		if func() bool {
-			// get token string - empty/no token isn't an error
-			tokenS := ctx.Request().Header("authorization")
-			if tokenS == "" {
-				return false
+func authHandler(s *Server) func(echo.HandlerFunc) echo.HandlerFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			tokenString := c.Request().Header.Get(shared.AUTH_HEADER)
+			if len(tokenString) == 0 {
+				return next(c)
 			}
 
-			// parse token
-			token, err := jwt.Parse(tokenS, func(t *jwt.Token) (interface{}, error) {
-				return jwtKey, nil
-			})
+			claims := jwt.RegisteredClaims{}
+			token, err := jwt.ParseWithClaims(
+				tokenString,
+				&claims,
+				func(t *jwt.Token) (interface{}, error) {
+					return s.jwtKey, nil
+				},
+			)
 			if err != nil {
-				log.Print("Parsing token failed: ", err)
-				return true
+				return errors.Wrap(err, "Could not parse JWT")
 			}
 
-			// check token validity
 			if !token.Valid {
-				log.Print("Invalid token!")
-				return true
+				return errors.New("JWT is not valid!")
 			}
 
-			// get user in token
-			subject, err := token.Claims.GetSubject()
-			if err != nil {
-				log.Print("Couldn't get username/subject! ", err)
-				return true
-			}
-			log.Print("User ID: ", subject)
+			log.Print("JWT is valid!")
 
-			// authenticate user in current context
-			data := ctx.Data().(*ContextData)
-			data.Authed = true
-			data.UserID = subject
-
-			return false
-		}() {
-			return ctx.Error(http.StatusUnauthorized)
+			return next(c)
 		}
-
-		return h(ctx)
-	}
-}
-
-func authCheck(
-	h aero.Handler,
-	ctx aero.Context,
-	endpoint string,
-	adminOly bool,
-) error {
-	// only trigger on selected endpoint - deny if true returned
-	if strings.HasPrefix(ctx.Path(), endpoint) && func() bool {
-		log.Print("Access to secure endpoint ", endpoint)
-
-		// deny if not authed
-		data := ctx.Data().(*ContextData)
-		if !data.Authed {
-			log.Printf("Not authenticated!")
-			return true
-		}
-
-		// if this endpoint requires admin privileges:
-		if adminOly {
-			// get user from DB
-			user := shared.User{ID: data.UserID}
-
-			// deny if user isn't an admin
-			if err := db.First(&user).Error; err != nil || !user.Admin {
-				log.Printf("User is NOT an administrator!")
-				return true
-			}
-
-			log.Printf("User is an administrator!")
-		}
-
-		return false
-	}() {
-		return ctx.Error(http.StatusUnauthorized)
-	}
-
-	return h(ctx)
-}
-
-func secureEndpointCheck(h aero.Handler) aero.Handler {
-	return func(ctx aero.Context) error {
-		return authCheck(h, ctx, shared.ENDPOINT_SECURE, false)
-	}
-}
-
-func adminEndpointCheck(h aero.Handler) aero.Handler {
-	return func(ctx aero.Context) error {
-		return authCheck(h, ctx, shared.ENDPOINT_ADMIN, true)
 	}
 }

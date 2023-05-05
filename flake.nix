@@ -2,8 +2,9 @@
   description = "easy music organizer";
 
   inputs.flake-utils.url = "github:numtide/flake-utils";
+  inputs.ref-merge.url = "github:42loco42/ref-merge";
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, ref-merge }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
@@ -16,19 +17,23 @@
             };
           })
           names));
+        packages = with pkgs; [
+          bashInteractive
+          libsodium.dev
+          oapi-codegen
+          ref-merge.outputs.defaultPackage.${system}
+          yq
+        ];
       in
       {
         defaultPackage = pkgs.buildGoModule {
           pname = "emo";
-          version = "0.0.1";
+          version = "1.0.0-indev";
           src = ./.;
 
-          vendorSha256 = "s7Uj+Da3PM+QK2K1uHoV36Fri1zi02/5jsTgtXk4XCo=";
+          vendorSha256 = pkgs.lib.fakeSha256;
 
-          nativeBuildInputs = with pkgs; [
-            pkg-config
-            libsodium.dev
-          ];
+          nativeBuildInputs = packages;
 
           PKG_CONFIG_PATH = "${pkgs.libsodium.dev}/lib/pkgconfig";
         };
@@ -36,12 +41,10 @@
         apps = mkApps [ "client" "server" ];
 
         devShell = pkgs.mkShell {
-          packages = with pkgs; [
-            bashInteractive
+          packages = packages ++ (with pkgs; [
             go
             gopls
-            sqlite-interactive
-          ];
+          ]);
         };
       });
 }

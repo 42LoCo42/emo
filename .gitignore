@@ -1,4 +1,8 @@
-/static
-/emo.db
+# data files
+*.db
+*.opus
+
+# automatically generated
+/api
 /result
 /.direnv

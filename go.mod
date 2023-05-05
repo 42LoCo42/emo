@@ -3,36 +3,40 @@ module github.com/42LoCo42/emo
 go 1.20
 
 require (
-	github.com/aerogo/aero v1.3.59
-	github.com/akyoto/uuid v1.1.3
-	github.com/golang-jwt/jwt/v5 v5.0.0-rc.1
+	github.com/asdine/storm/v3 v3.2.1
+	github.com/deepmap/oapi-codegen v1.12.4
+	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/jamesruan/sodium v1.0.14
+	github.com/labstack/echo/v4 v4.10.2
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.7.0
-	golang.org/x/crypto v0.6.0
 	golang.org/x/term v0.5.0
-	gorm.io/driver/sqlite v1.4.4
-	gorm.io/gorm v1.24.5
 )
 
 require (
-	github.com/aerogo/csp v0.1.10 // indirect
-	github.com/aerogo/http v1.1.3 // indirect
-	github.com/aerogo/session v0.1.9 // indirect
-	github.com/aerogo/session-store-memory v0.1.9 // indirect
-	github.com/akyoto/color v1.8.12 // indirect
-	github.com/akyoto/colorable v0.1.7 // indirect
-	github.com/akyoto/hash v0.5.0 // indirect
-	github.com/akyoto/stringutils v0.3.1 // indirect
-	github.com/akyoto/tty v0.1.4 // indirect
-	github.com/cristalhq/acmd v0.11.1
+	github.com/Sereal/Sereal/Go/sereal v0.0.0-20230419130644-dca84cd9f196 // indirect
+	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/google/go-cmp v0.5.9 // indirect
+	github.com/google/uuid v1.3.0 // indirect
+	github.com/labstack/gommon v0.4.0 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.17 // indirect
+	github.com/stretchr/testify v1.8.2 // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	github.com/valyala/fasttemplate v1.2.2 // indirect
+	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
+	go.etcd.io/bbolt v1.3.7 // indirect
+	golang.org/x/crypto v0.6.0
+	golang.org/x/net v0.7.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
+	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/protobuf v1.28.1 // indirect
+)
+
+require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/jinzhu/inflection v1.0.0 // indirect
-	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
-	github.com/mattn/go-sqlite3 v1.14.15 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/zeebo/xxh3 v1.0.1 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 )
 

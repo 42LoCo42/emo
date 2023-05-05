@@ -1,0 +1,380 @@
+openapi: 3.0.3
+info:
+  title: emo API
+  version: 0.1.0
+externalDocs:
+  description: GitHub repository
+  url: http://github.com/42LoCo42/emo
+servers:
+  - url: http://localhost:37812
+tags:
+  - name: users
+    description: The users of emo
+  - name: songs
+    description: The songs stored in emo
+  - name: stats
+    description: Listening statistics, connecting users and songs
+components:
+  schemas:
+    UserName:
+      type: string
+      example: "admin"
+    User:
+      type: object
+      required:
+        - Name
+        - IsAdmin
+        - CanUploadSongs
+        - PublicKey
+      properties:
+        Name:
+          $ref: '#/components/schemas/UserName'
+          x-oapi-codegen-extra-tags:
+            storm: id
+        IsAdmin:
+          type: boolean
+          example: true
+          description: >-
+            Is this user allowed to perform administrative actions,
+            such as modifying users and querying all information?
+        CanUploadSongs:
+          type: boolean
+          example: true
+          description: >-
+            Is this user allowed to upload new songs?
+        PublicKey:
+          type: string
+          format: binary
+          description: The public key of this user
+          x-go-type: "[]byte"
+    Song:
+      type: object
+      required:
+        - Info
+        - File
+      properties:
+        Info:
+          $ref: '#/components/schemas/SongInfo'
+        File:
+          $ref: '#/components/schemas/SongFile'
+    SongName:
+      type: string
+      example: "good stuff/vibe.opus"
+    SongInfo:
+      type: object
+      required:
+        - Name
+      properties:
+        Name:
+          $ref: '#/components/schemas/SongName'
+          x-oapi-codegen-extra-tags:
+            storm: id
+    SongFile:
+      type: string
+      format: binary
+      x-go-type: "[]byte"
+    StatID:
+      type: integer
+      format: uint64
+      example: 12345
+    Stat:
+      type: object
+      required:
+        - ID
+        - User
+        - Song
+        - Count
+        - Boost
+      properties:
+        ID:
+          $ref: '#/components/schemas/StatID'
+          x-oapi-codegen-extra-tags:
+            storm: id,increment
+        User:
+          $ref: '#/components/schemas/UserName'
+        Song:
+          $ref: '#/components/schemas/SongName'
+        Count:
+          type: integer
+          format: uint64
+          example: 4
+        Boost:
+          type: integer
+          format: uint64
+          example: 2
+paths:
+  /login/{user}:
+    get:
+      description: This endpoint returns a valid JWT encrypted with the user's public key
+      tags:
+        - login
+      parameters:
+        - name: user
+          in: path
+          required: true
+          description: The name of the user
+          schema:
+            $ref: '#/components/schemas/UserName'
+      responses:
+        '200':
+          description: The encrypted JWT
+          content:
+            text/plain:
+              schema:
+                type: string
+  /users:
+    get:
+      description: Get all users
+      tags:
+        - users
+      responses:
+        '200':
+          description: A list of all users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+    post:
+      description: Create or update user
+      tags:
+        - users
+      requestBody:
+        content:
+          application/json:
+            schema: 
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: Update successfully applied
+  /users/{name}:
+    get:
+      description: Get a user by name
+      tags:
+        - users
+      parameters: 
+        - name: name
+          in: path
+          required: true
+          description: The name of the user
+          schema:
+            $ref: '#/components/schemas/UserName'
+      responses:
+        '200':
+          description: The user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+    delete: 
+      description: Delete a user
+      tags:
+        - users
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The name of the user
+          schema:
+            $ref: '#/components/schemas/UserName'
+      responses:
+        '200':
+          description: User was deleted successfully
+        '404':
+          description: User not found
+  /songs:
+    get:
+      description: Get all songs
+      tags:
+        - songs
+      responses:
+        '200':
+          description: A list of all songs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SongInfo'
+    post:
+      description: Create or update a song
+      tags:
+        - songs
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Song'
+      responses:
+        '200':
+          description: Update successfully applied
+  /songs/{name}:
+    get:
+      description: Get a song by name
+      tags:
+        - songs
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The name of the song
+          schema:
+            $ref: '#/components/schemas/SongName'
+      responses:
+        '200':
+          description: The song
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SongInfo'
+        '404':
+          description: Song not found
+    delete:
+      description: Delete a song
+      tags:
+        - songs
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The name of the song
+          schema:
+            $ref: '#/components/schemas/SongName'
+      responses:
+        '200':
+          description: Song was deleted successfully
+        '404':
+          description: Song not found
+  /songs/{name}/file:
+    get:
+      description: Get the contents of the song file
+      tags:
+        - songs
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The name of the song
+          schema:
+            $ref: '#/components/schemas/SongName'
+      responses:
+        '200':
+          description: The contents of the song
+          content:
+            application/octet-stream:
+              schema:
+                $ref: '#/components/schemas/SongFile'
+        '400':
+          description: Song not found
+  /stats:
+    get:
+      description: Get all stats
+      tags:
+        - stats
+      responses:
+        '200':
+          description: A list of all stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Stat'
+    post:
+      description: Create or update stat
+      tags:
+        - stats
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Stat'
+      responses:
+        '200':
+          description: Update successfully applied
+  /stats/{id}:
+    get:
+      description: Get a stat
+      tags:
+        - stats
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The ID of the stat
+          schema:
+            $ref: '#/components/schemas/StatID'
+      responses:
+        '200':
+          description: The stat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stat'
+        '404':
+          description: Stat not found
+    delete: 
+      description: Delete a stat
+      tags:
+        - stats
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The ID of the stat
+          schema:
+            $ref: '#/components/schemas/StatID'
+      responses:
+        '200':
+          description: Stat deleted successfully
+        '404':
+          description: Stat not found
+  /stats/user/{user}:
+    get:
+      description: Filter stats by user
+      tags:
+        - stats
+      parameters: 
+        - name: user
+          in: path
+          required: true
+          description: The username
+          schema:
+            $ref: '#/components/schemas/UserName'
+      responses:
+        '200':
+          description: The stats of the user
+          content:
+            application/json:
+              schema:
+                type: array
+                items: 
+                  $ref: '#/components/schemas/Stat'
+        '404':
+          description: User not found
+  /stats/song/{song}:
+    get:
+      description: Filter stats by song
+      tags:
+        - stats
+      parameters: 
+        - name: song
+          in: path
+          required: true
+          description: The song name
+          schema:
+            $ref: '#/components/schemas/SongName'
+      responses:
+        '200':
+          description: The stats which reference this song
+          content:
+            application/json:
+              schema:
+                type: array
+                items: 
+                  $ref: '#/components/schemas/Stat'
+        '404':
+          description: Song not found
