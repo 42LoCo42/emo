@@ -2,7 +2,6 @@ package util
 
 import (
 	"context"
-	"log"
 	"net/http"
 
 	"github.com/42LoCo42/emo/api"
@@ -34,7 +33,6 @@ func InitClient() error {
 		return errors.Wrap(err, "could not create client")
 	}
 
-	log.Print("Client created")
 	return nil
 }
 
