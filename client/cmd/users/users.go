@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-func Init() *cobra.Command {
+func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "users",
 		Short: "User management",
@@ -22,25 +22,27 @@ func Init() *cobra.Command {
 
 	cmd.AddCommand(
 		list(),
-		get(),
 		set(),
+		get(),
 		del(),
 	)
 
 	return cmd
 }
 
+func prettyPrintUser(user *api.User) {
+	fmt.Println("Username:         ", user.Name)
+	fmt.Println("Is admin:         ", user.IsAdmin)
+	fmt.Println("Can upload songs: ", user.CanUploadSongs)
+	fmt.Println("Public key:       ", base64.StdEncoding.EncodeToString(user.PublicKey))
+}
+
 func list() *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "list",
 		Short: "Get a list of all users",
 		Run: func(cmd *cobra.Command, args []string) {
-			client, err := util.NewClient()
-			if err != nil {
-				shared.Die(err, "could not create client")
-			}
-
-			resp, err := client.GetUsers(context.Background())
+			resp, err := util.Client().GetUsers(context.Background())
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "get users request failed")
 			}
@@ -55,42 +57,6 @@ func list() *cobra.Command {
 			}
 		},
 	}
-
-	return cmd
-}
-
-func get() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "get username",
-		Short: "Get a user",
-		Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			username := args[0]
-
-			client, err := util.NewClient()
-			if err != nil {
-				shared.Die(err, "could not create client")
-			}
-
-			resp, err := client.GetUsersName(context.Background(), username)
-			if err != nil || resp.StatusCode != http.StatusOK {
-				shared.Die(err, "get user by name request failed")
-			}
-
-			data, err := api.ParseGetUsersNameResponse(resp)
-			if err != nil {
-				shared.Die(err, "could not parse get user by name response")
-			}
-
-			fmt.Println("Username:         ", data.JSON200.Name)
-			fmt.Println("Is admin:         ", data.JSON200.IsAdmin)
-			fmt.Println("Can upload songs: ", data.JSON200.CanUploadSongs)
-			fmt.Println("Public key:       ",
-				base64.StdEncoding.EncodeToString(data.JSON200.PublicKey))
-		},
-	}
-
-	return cmd
 }
 
 func set() *cobra.Command {
@@ -107,14 +73,9 @@ func set() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			username := args[0]
 
-			client, err := util.NewClient()
-			if err != nil {
-				shared.Die(err, "could not create client")
-			}
-
 			// get user
 
-			resp, err := client.GetUsersName(context.Background(), username)
+			resp, err := util.Client().GetUsersName(context.Background(), username)
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "get user by name request failed")
 			}
@@ -153,12 +114,12 @@ func set() *cobra.Command {
 
 			// post changed user
 
-			resp, err = client.PostUsers(context.Background(), *data.JSON200)
+			resp, err = util.Client().PostUsers(context.Background(), *data.JSON200)
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "post user request failed")
 			}
 
-			log.Print("Done!")
+			prettyPrintUser(data.JSON200)
 		},
 	}
 
@@ -183,6 +144,31 @@ func set() *cobra.Command {
 	return cmd
 }
 
+func get() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "get username",
+		Short: "Get a user",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			username := args[0]
+
+			resp, err := util.Client().GetUsersName(context.Background(), username)
+			if err != nil || resp.StatusCode != http.StatusOK {
+				shared.Die(err, "get user by name request failed")
+			}
+
+			data, err := api.ParseGetUsersNameResponse(resp)
+			if err != nil {
+				shared.Die(err, "could not parse get user by name response")
+			}
+
+			prettyPrintUser(data.JSON200)
+		},
+	}
+
+	return cmd
+}
+
 func del() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete username",
@@ -191,12 +177,7 @@ func del() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			username := args[0]
 
-			client, err := util.NewClient()
-			if err != nil {
-				shared.Die(err, "could not create client")
-			}
-
-			resp, err := client.DeleteUsersName(context.Background(), username)
+			resp, err := util.Client().DeleteUsersName(context.Background(), username)
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "delete user request failed")
 			}

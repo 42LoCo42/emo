@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"log"
 	"net/http"
 
 	"github.com/42LoCo42/emo/api"
@@ -9,16 +10,19 @@ import (
 	"github.com/pkg/errors"
 )
 
-var Address string // set by main from flag
+var (
+	Address string // set by main from flag
+	client  *api.Client
+)
 
-func NewClient() (*api.Client, error) {
+func InitClient() error {
 	token, err := LoadToken()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not load token")
+		return errors.Wrap(err, "could not load token")
 	}
 
-	client, err := api.NewClient(
-		Address,
+	client, err = api.NewClient(
+		"undefined:",
 		api.WithRequestEditorFn(
 			func(ctx context.Context, req *http.Request) error {
 				req.Header.Add(shared.AUTH_HEADER, string(token))
@@ -27,8 +31,14 @@ func NewClient() (*api.Client, error) {
 		),
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create client")
+		return errors.Wrap(err, "could not create client")
 	}
 
-	return client, nil
+	log.Print("Client created")
+	return nil
+}
+
+func Client() *api.Client {
+	client.Server = Address
+	return client
 }

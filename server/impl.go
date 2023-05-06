@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/42LoCo42/emo/api"
@@ -14,6 +15,8 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
 )
+
+const SONGFILE_BUCKET = "songfiles"
 
 type Server struct {
 	db     *storm.DB
@@ -52,12 +55,28 @@ func (s *Server) GetLoginUser(ctx echo.Context, name string) error {
 
 // DeleteSongsName implements api.ServerInterface
 func (s *Server) DeleteSongsName(ctx echo.Context, name string) error {
-	panic("unimplemented")
+	tx, err := s.db.Begin(true)
+	if err != nil {
+		return errors.Wrap(err, "could not create transaction")
+	}
+	defer tx.Rollback()
+
+	if err := tx.DeleteStruct(&api.SongInfo{
+		Name: name,
+	}); err != nil {
+		return err
+	}
+
+	if err := tx.Delete(SONGFILE_BUCKET, name); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 // DeleteStatsId implements api.ServerInterface
 func (s *Server) DeleteStatsId(ctx echo.Context, id uint64) error {
-	panic("unimplemented")
+	return s.db.DeleteStruct(&api.Stat{ID: id})
 }
 
 // DeleteUsersName implements api.ServerInterface
@@ -67,37 +86,71 @@ func (s *Server) DeleteUsersName(ctx echo.Context, name string) error {
 
 // GetSongs implements api.ServerInterface
 func (s *Server) GetSongs(ctx echo.Context) error {
-	panic("unimplemented")
+	var songs []api.SongInfo
+	if err := s.db.All(&songs); err != nil {
+		return err
+	}
+	return ctx.JSON(http.StatusOK, songs)
 }
 
 // GetSongsName implements api.ServerInterface
 func (s *Server) GetSongsName(ctx echo.Context, name string) error {
-	panic("unimplemented")
+	var song api.SongInfo
+	if err := s.db.One("Name", name, &song); err != nil {
+		return err
+	}
+
+	return ctx.JSON(http.StatusOK, song)
 }
 
 // GetSongsNameFile implements api.ServerInterface
 func (s *Server) GetSongsNameFile(ctx echo.Context, name string) error {
-	panic("unimplemented")
+	var song api.SongFile
+	if err := s.db.Get(SONGFILE_BUCKET, name, &song); err != nil {
+		return err
+	}
+
+	return ctx.Blob(http.StatusOK, "application/octet-stream", song)
 }
 
 // GetStats implements api.ServerInterface
 func (s *Server) GetStats(ctx echo.Context) error {
-	panic("unimplemented")
+	var stats []api.Stat
+	if err := s.db.All(&stats); err != nil {
+		return err
+	}
+
+	return ctx.JSON(http.StatusOK, stats)
 }
 
 // GetStatsId implements api.ServerInterface
 func (s *Server) GetStatsId(ctx echo.Context, id uint64) error {
-	panic("unimplemented")
+	var stat api.Stat
+	if err := s.db.One("ID", id, &stat); err != nil {
+		return err
+	}
+
+	return ctx.JSON(http.StatusOK, stat)
 }
 
 // GetStatsSongSong implements api.ServerInterface
 func (s *Server) GetStatsSongSong(ctx echo.Context, song string) error {
-	panic("unimplemented")
+	var stats []api.Stat
+	if err := s.db.Find("Song", song, &stats); err != nil {
+		return err
+	}
+
+	return ctx.JSON(http.StatusOK, stats)
 }
 
 // GetStatsUserUser implements api.ServerInterface
 func (s *Server) GetStatsUserUser(ctx echo.Context, user string) error {
-	panic("unimplemented")
+	var stats []api.Stat
+	if err := s.db.Find("User", user, &stats); err != nil {
+		return err
+	}
+
+	return ctx.JSON(http.StatusOK, stats)
 }
 
 // GetUsers implements api.ServerInterface
@@ -120,12 +173,63 @@ func (s *Server) GetUsersName(ctx echo.Context, name string) error {
 
 // PostSongs implements api.ServerInterface
 func (s *Server) PostSongs(ctx echo.Context) error {
-	panic("unimplemented")
+	tx, err := s.db.Begin(true)
+	if err != nil {
+		return errors.Wrap(err, "could not start transaction")
+	}
+	defer tx.Rollback()
+
+	form, err := ctx.MultipartForm()
+	if err != nil {
+		return errors.Wrap(err, "could not get multipart form")
+	}
+
+	infos := form.Value["Info"]
+	if len(infos) != 1 {
+		return ctx.NoContent(http.StatusBadRequest)
+	}
+
+	var info api.SongInfo
+	if err := json.NewDecoder(strings.NewReader(infos[0])).Decode(&info); err != nil {
+		return errors.Wrap(err, "could not decode song info")
+	}
+
+	if err := tx.Save(&info); err != nil {
+		return errors.Wrap(err, "could not save song info")
+	}
+
+	files := form.File["File"]
+	if len(files) == 1 {
+		file, err := files[0].Open()
+		if err != nil {
+			return errors.Wrap(err, "could not open song file")
+		}
+
+		buf := make([]byte, files[0].Size)
+		if _, err := file.Read(buf); err != nil {
+			return errors.Wrap(err, "could not read song file")
+		}
+
+		if err := tx.Set(SONGFILE_BUCKET, info.Name, buf); err != nil {
+			return errors.Wrap(err, "could not save song file")
+		}
+	}
+
+	return tx.Commit()
 }
 
 // PostStats implements api.ServerInterface
 func (s *Server) PostStats(ctx echo.Context) error {
-	panic("unimplemented")
+	var stat api.Stat
+	if err := json.NewDecoder(ctx.Request().Body).Decode(&stat); err != nil {
+		return errors.Wrap(err, "could not decode stat")
+	}
+
+	if err := s.db.Save(&stat); err != nil {
+		return errors.Wrap(err, "could not save stat")
+	}
+
+	return ctx.NoContent(http.StatusOK)
 }
 
 // PostUsers implements api.ServerInterface

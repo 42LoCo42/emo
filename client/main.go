@@ -5,8 +5,11 @@ import (
 	"os"
 
 	"github.com/42LoCo42/emo/client/cmd/login"
+	"github.com/42LoCo42/emo/client/cmd/songs"
+	"github.com/42LoCo42/emo/client/cmd/stats"
 	"github.com/42LoCo42/emo/client/cmd/users"
 	"github.com/42LoCo42/emo/client/util"
+	"github.com/42LoCo42/emo/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -17,22 +20,26 @@ var (
 	}
 )
 
-func init() {
-	rootCmd.PersistentFlags().StringVar(
+func main() {
+	rootCmd.PersistentFlags().StringVarP(
 		&util.Address,
 		"address",
+		"a",
 		"",
 		"Address of the emo server",
 	)
-	rootCmd.MarkPersistentFlagRequired("address")
+
+	if err := util.InitClient(); err != nil {
+		shared.Die(err, "could not create client")
+	}
 
 	rootCmd.AddCommand(
 		login.Login,
-		users.Init(),
+		users.Cmd(),
+		songs.Cmd(),
+		stats.Cmd(),
 	)
-}
 
-func main() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

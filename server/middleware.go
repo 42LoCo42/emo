@@ -63,7 +63,8 @@ func authHandler(s *Server) func(echo.HandlerFunc) echo.HandlerFunc {
 				return errors.New("JWT is not valid!")
 			}
 
-			log.Print("JWT is valid!")
+			log.Printf("JWT is valid for %s!", claims.Subject)
+			c.Set("user", claims.Subject)
 
 			return next(c)
 		}
