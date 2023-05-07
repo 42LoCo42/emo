@@ -88,8 +88,10 @@ func handleClient(client net.Conn, state *state.State) {
 		for {
 			fmt.Fprint(client, "🎵 > ")
 			line, err := scn.ReadString('\n')
-			if err != nil && err != io.EOF {
-				log.Print("Could not read client command: ", err)
+			if err != nil {
+				if err != io.EOF {
+					log.Print("Could not read client command: ", err)
+				}
 				return
 			}
 
