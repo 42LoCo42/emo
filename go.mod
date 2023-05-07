@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/asdine/storm/v3 v3.2.1
 	github.com/deepmap/oapi-codegen v1.12.4
+	github.com/gen2brain/go-mpv v0.0.0-20230406045342-f5203b65eb0e
 	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/jamesruan/sodium v1.0.14
 	github.com/labstack/echo/v4 v4.10.2

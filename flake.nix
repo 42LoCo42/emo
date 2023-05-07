@@ -27,6 +27,7 @@
 
         buildInputs = with pkgs; [
           libsodium
+          mpv-unwrapped.dev
         ];
 
         shellTools = with pkgs; [
@@ -40,7 +41,7 @@
           pname = "emo";
           version = "1.0.0-indev";
           src = ./.;
-          vendorSha256 = "sha256-5lp8LA9KpyFqlA15gg3+/61BT8C1V9HJQw0dh/u3IRk=";
+          vendorSha256 = "sha256-pe8Q5MHg0nJAUr+7iFNUjOB0GZClUVRGtT/ICEiuHjA=";
 
           inherit nativeBuildInputs buildInputs;
 

@@ -30,7 +30,12 @@ func Run() error {
 		return errors.Wrap(err, "could not open listener")
 	}
 
-	state := state.State{}
+	state, err := state.New()
+	if err != nil {
+		return errors.Wrap(err, "could not create daemon state")
+	}
+
+	go state.Mpv.Run()
 	log.Print("Daemon has started, listening on ", socketPath)
 
 	for {
@@ -39,7 +44,7 @@ func Run() error {
 			return errors.Wrap(err, "could not accept client")
 		}
 
-		go handleClient(client, &state)
+		go handleClient(client, state)
 	}
 }
 
