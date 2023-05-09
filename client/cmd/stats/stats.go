@@ -67,8 +67,8 @@ func set() *cobra.Command {
 	var (
 		user  *string
 		song  *string
-		count *uint64
-		boost *uint64
+		count *int64
+		boost *int64
 	)
 
 	cmd := &cobra.Command{
@@ -82,9 +82,7 @@ func set() *cobra.Command {
 			}
 
 			// get stat
-			stat := api.Stat{
-				ID: id,
-			}
+			stat := api.Stat{ID: id}
 
 			resp, err := util.Client().GetStatsId(context.Background(), id)
 			if err != nil || (resp.StatusCode != http.StatusOK &&
@@ -130,30 +128,26 @@ func set() *cobra.Command {
 		},
 	}
 
-	user = cmd.Flags().StringP(
+	user = cmd.Flags().String(
 		"user",
-		"u",
 		"",
 		"The user of this statistic",
 	)
 
-	song = cmd.Flags().StringP(
+	song = cmd.Flags().String(
 		"song",
-		"s",
 		"",
 		"The song of this statistic",
 	)
 
-	count = cmd.Flags().Uint64P(
+	count = cmd.Flags().Int64(
 		"count",
-		"c",
 		0,
 		"The count of this statistic",
 	)
 
-	boost = cmd.Flags().Uint64P(
+	boost = cmd.Flags().Int64(
 		"boost",
-		"b",
 		0,
 		"The boost of this statistic",
 	)

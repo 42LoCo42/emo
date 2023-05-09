@@ -96,11 +96,11 @@ components:
           $ref: '#/components/schemas/SongName'
         Count:
           type: integer
-          format: uint64
+          format: int64
           example: 4
         Boost:
           type: integer
-          format: uint64
+          format: int64
           example: 2
 paths:
   /login/{user}:
