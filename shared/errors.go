@@ -13,12 +13,7 @@ type StackTracer interface {
 }
 
 func Die(err error, msg string) {
-	if err == nil {
-		err = errors.New(msg)
-	} else if msg != "" {
-		err = errors.Wrap(err, msg)
-	}
-
+	err = Wrap(err, msg)
 	log.Print(err)
 	Trace(err)
 	os.Exit(1)
@@ -29,5 +24,13 @@ func Trace(err error) {
 		for _, frame := range trace.StackTrace() {
 			fmt.Fprintf(os.Stderr, "%+v\n", frame)
 		}
+	}
+}
+
+func Wrap(err error, message string) error {
+	if err == nil {
+		return errors.New(message)
+	} else {
+		return errors.Wrap(err, message)
 	}
 }

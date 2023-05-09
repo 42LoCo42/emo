@@ -13,26 +13,26 @@ import (
 	"github.com/42LoCo42/emo/client/daemon/playback"
 	"github.com/42LoCo42/emo/client/daemon/queue"
 	"github.com/42LoCo42/emo/client/daemon/state"
-	"github.com/pkg/errors"
+	"github.com/42LoCo42/emo/shared"
 	"github.com/spf13/cobra"
 )
 
 func Run() error {
 	socketPath, err := GetSocketPath()
 	if err != nil {
-		return errors.Wrap(err, "could not get socket path")
+		return shared.Wrap(err, "could not get socket path")
 	}
 
 	os.Remove(socketPath)
 
 	listener, err := net.Listen("unix", socketPath)
 	if err != nil {
-		return errors.Wrap(err, "could not open listener")
+		return shared.Wrap(err, "could not open listener")
 	}
 
 	state, err := state.New()
 	if err != nil {
-		return errors.Wrap(err, "could not create daemon state")
+		return shared.Wrap(err, "could not create daemon state")
 	}
 
 	go state.Mpv.Run()
@@ -41,7 +41,7 @@ func Run() error {
 	for {
 		client, err := listener.Accept()
 		if err != nil {
-			return errors.Wrap(err, "could not accept client")
+			return shared.Wrap(err, "could not accept client")
 		}
 
 		go handleClient(client, state)

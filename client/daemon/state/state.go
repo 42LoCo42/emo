@@ -2,8 +2,8 @@ package state
 
 import (
 	"github.com/42LoCo42/emo/client/util"
+	"github.com/42LoCo42/emo/shared"
 	"github.com/gen2brain/go-mpv"
-	"github.com/pkg/errors"
 )
 
 type State struct {
@@ -24,7 +24,7 @@ func New() (state *State, err error) {
 	}
 
 	if err := state.Mpv.Initialize(); err != nil {
-		return nil, errors.Wrap(err, "could not initialize MPV")
+		return nil, shared.Wrap(err, "could not initialize MPV")
 	}
 
 	state.Mpv.Observe("path", mpv.FORMAT_STRING, func(a any) {

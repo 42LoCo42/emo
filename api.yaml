@@ -295,6 +295,21 @@ paths:
       responses:
         '200':
           description: Update successfully applied
+  /stats/bulkadd:
+    post:
+      description: Add a list of stats to the current ones
+      tags:
+        - stats
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Stat'
+      responses:
+        '200':
+          description: Update successfully applied
   /stats/{id}:
     get:
       description: Get a stat
@@ -332,6 +347,20 @@ paths:
           description: Stat deleted successfully
         '404':
           description: Stat not found
+  /stats/user:
+    get:
+      description: Get stats of current user
+      tags:
+        - stats
+      responses:
+        '200':
+          description: The stats of the user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Stat'
   /stats/user/{user}:
     get:
       description: Filter stats by user

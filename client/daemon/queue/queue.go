@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/42LoCo42/emo/client/daemon/state"
-	"github.com/pkg/errors"
+	"github.com/42LoCo42/emo/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -58,7 +58,7 @@ func del(state *state.State) *cobra.Command {
 			if err != nil {
 				fmt.Fprintln(
 					cmd.ErrOrStderr(),
-					errors.Wrap(err, "could not parse index"),
+					shared.Wrap(err, "could not parse index"),
 				)
 				return
 			}

@@ -6,7 +6,6 @@ import (
 
 	"github.com/42LoCo42/emo/api"
 	"github.com/42LoCo42/emo/shared"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -17,7 +16,7 @@ var (
 func InitClient() error {
 	token, err := LoadToken()
 	if err != nil {
-		return errors.Wrap(err, "could not load token")
+		return shared.Wrap(err, "could not load token")
 	}
 
 	client, err = api.NewClient(
@@ -30,7 +29,7 @@ func InitClient() error {
 		),
 	)
 	if err != nil {
-		return errors.Wrap(err, "could not create client")
+		return shared.Wrap(err, "could not create client")
 	}
 
 	return nil

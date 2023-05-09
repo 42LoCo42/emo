@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/42LoCo42/emo/client/daemon/state"
-	"github.com/pkg/errors"
+	"github.com/42LoCo42/emo/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -120,7 +120,7 @@ func backward(state *state.State) *cobra.Command {
 			if err != nil {
 				fmt.Fprintln(
 					cmd.ErrOrStderr(),
-					errors.Wrap(err, "could not parse time"),
+					shared.Wrap(err, "could not parse time"),
 				)
 			}
 

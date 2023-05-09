@@ -25,6 +25,7 @@ func Cmd() *cobra.Command {
 		set(),
 		get(),
 		del(),
+		ofMyself(),
 		ofUser(),
 		ofSong(),
 	)
@@ -198,6 +199,29 @@ func del() *cobra.Command {
 			}
 
 			log.Print("Done!")
+		},
+	}
+}
+
+func ofMyself() *cobra.Command {
+	return &cobra.Command{
+		Use:   "ofMyself",
+		Short: "Get the statistics of the currently logged in user",
+		Run: func(cmd *cobra.Command, args []string) {
+			resp, err := util.Client().GetStatsUser(context.Background())
+			if err != nil || resp.StatusCode != http.StatusOK {
+				shared.Die(err, "get stats of user request failed")
+			}
+
+			data, err := api.ParseGetStatsUserUserResponse(resp)
+			if err != nil {
+				shared.Die(err, "could not parse stats of user response")
+			}
+
+			for _, stat := range *data.JSON200 {
+				prettyPrintStat(&stat)
+				fmt.Println()
+			}
 		},
 	}
 }

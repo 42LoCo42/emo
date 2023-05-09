@@ -6,7 +6,7 @@ import (
 	"os/user"
 	"path"
 
-	"github.com/pkg/errors"
+	"github.com/42LoCo42/emo/shared"
 )
 
 var SocketPath string
@@ -24,7 +24,7 @@ func GetSocketPath() (string, error) {
 
 	user, err := user.Current()
 	if err != nil {
-		return "", errors.Wrap(err, "could not get current user")
+		return "", shared.Wrap(err, "could not get current user")
 	}
 
 	return path.Join("/tmp", user.Username+"-emo.socket"), nil

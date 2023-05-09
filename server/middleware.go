@@ -56,7 +56,7 @@ func authHandler(s *Server) func(echo.HandlerFunc) echo.HandlerFunc {
 				},
 			)
 			if err != nil {
-				return errors.Wrap(err, "Could not parse JWT")
+				return shared.Wrap(err, "Could not parse JWT")
 			}
 
 			if !token.Valid {
