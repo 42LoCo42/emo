@@ -7,9 +7,16 @@ import (
 	"github.com/gen2brain/go-mpv"
 )
 
+const (
+	STOP_REASON_EOF   = C.MPV_END_FILE_REASON_EOF
+	STOP_REASON_STOP  = C.MPV_END_FILE_REASON_STOP
+	STOP_REASON_ERROR = C.MPV_END_FILE_REASON_ERROR
+)
+
 type Mpv struct {
 	*mpv.Mpv
 	callbacks map[string]func(any)
+	OnStop    func(reason int)
 }
 
 func (m *Mpv) Observe(
@@ -28,6 +35,11 @@ func (m *Mpv) Observe(
 func (m *Mpv) Run() {
 	for {
 		e := m.WaitEvent(-1)
+
+		if e.Event_Id == mpv.EVENT_END_FILE && m.OnStop != nil {
+			reason := (*(*C.struct_mpv_event_end_file)(e.Data)).reason
+			m.OnStop(int(reason))
+		}
 
 		name, data := readEvent(e)
 		callback, ok := m.callbacks[name]

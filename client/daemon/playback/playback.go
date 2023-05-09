@@ -20,8 +20,8 @@ func Cmd(state *state.State) *cobra.Command {
 		play(state),
 		pause(state),
 		toggle(state),
-		forward(state),
-		backward(state),
+		seek(state, "forward", 1),
+		seek(state, "backward", -1),
 	)
 
 	return cmd
@@ -32,10 +32,10 @@ func show(state *state.State) *cobra.Command {
 		Use:   "show",
 		Short: "Show the currently playing song",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprintln(cmd.OutOrStdout(), "song:    ", state.CurrentSong)
-			fmt.Fprintln(cmd.OutOrStdout(), "time:    ", state.Time)
-			fmt.Fprintln(cmd.OutOrStdout(), "percent: ", state.Percentage)
-			fmt.Fprintln(cmd.OutOrStdout(), "paused:  ", state.Paused)
+			fmt.Fprintln(cmd.OutOrStdout(), "song:   ", state.CurrentSong)
+			fmt.Fprintln(cmd.OutOrStdout(), "time:   ", state.Time)
+			fmt.Fprintln(cmd.OutOrStdout(), "percent:", state.Percentage)
+			fmt.Fprintln(cmd.OutOrStdout(), "paused: ", state.Paused)
 		},
 	}
 }
@@ -45,17 +45,7 @@ func next(state *state.State) *cobra.Command {
 		Use:   "next",
 		Short: "Move to the next song (either from queue or randomly selected)",
 		Run: func(cmd *cobra.Command, args []string) {
-			var song string
-
-			if len(state.Queue) > 0 {
-				song = state.Queue[0]
-				state.Queue = state.Queue[1:]
-			} else {
-				panic("TODO randomselect song")
-			}
-
-			state.SelectSong(song)
-			fmt.Fprintln(cmd.OutOrStdout(), song)
+			fmt.Fprintln(cmd.OutOrStdout(), "song:", state.NextSong())
 		},
 	}
 }
@@ -91,29 +81,14 @@ func toggle(state *state.State) *cobra.Command {
 	}
 }
 
-func forward(state *state.State) *cobra.Command {
+func seek(
+	state *state.State,
+	name string,
+	factor float64,
+) *cobra.Command {
 	return &cobra.Command{
-		Use:   "forward seconds",
-		Short: "Move current song forwards",
-		Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			time, err := strconv.ParseFloat(args[0], 64)
-			if err != nil {
-				fmt.Fprintln(
-					cmd.ErrOrStderr(),
-					errors.Wrap(err, "could not parse time"),
-				)
-			}
-
-			state.Move(time)
-		},
-	}
-}
-
-func backward(state *state.State) *cobra.Command {
-	return &cobra.Command{
-		Use:   "backward seconds",
-		Short: "Move current song backwards",
+		Use:   name + " seconds",
+		Short: "Seek " + name + " in current song",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			time, err := strconv.ParseFloat(args[0], 64)
@@ -124,7 +99,9 @@ func backward(state *state.State) *cobra.Command {
 				)
 			}
 
-			state.Move(-time)
+			state.Move(time * factor)
+			fmt.Fprintln(cmd.OutOrStdout(), "time:", state.Time)
+			fmt.Fprintln(cmd.OutOrStdout(), "percent:", state.Percentage)
 		},
 	}
 }
