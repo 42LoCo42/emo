@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"log"
 	"net/http"
 
 	"github.com/42LoCo42/emo/api"
@@ -16,7 +17,7 @@ var (
 func InitClient() error {
 	token, err := LoadToken()
 	if err != nil {
-		return shared.Wrap(err, "could not load token")
+		log.Print(shared.Wrap(err, "warning: no token loaded"))
 	}
 
 	client, err = api.NewClient(
