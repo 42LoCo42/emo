@@ -3,8 +3,10 @@ package state
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/42LoCo42/emo/api"
 	"github.com/42LoCo42/emo/client/util"
@@ -19,6 +21,7 @@ type State struct {
 
 	Queue []string
 
+	CurrentFile string
 	CurrentSong string
 	Time        float64
 	Percentage  int64
@@ -64,21 +67,21 @@ func New() (state *State, err error) {
 	}
 
 	// observe some properties
-	state.Mpv.Observe("path", mpv.FORMAT_STRING, func(a any) {
-		state.CurrentSong = a.(string)
-	})
 	state.Mpv.Observe("playback-time", mpv.FORMAT_DOUBLE, func(a any) {
 		state.Time = a.(float64)
 	})
 	state.Mpv.Observe("percent-pos", mpv.FORMAT_INT64, func(a any) {
 		state.Percentage = a.(int64)
 	})
+
+	// not really neccessary
 	state.Mpv.Observe("pause", mpv.FORMAT_FLAG, func(a any) {
 		state.Paused = a.(bool)
 	})
 
 	// stop handler
 	state.Mpv.OnStop = func(reason int) {
+		// TODO add count & boost updates
 		switch reason {
 		case util.STOP_REASON_EOF:
 			log.Print("normal stop, calling next")
@@ -100,15 +103,42 @@ func (state *State) SyncStats() error {
 }
 
 func (state *State) SelectSong(song string) {
-	state.CurrentSong = song
-	state.Mpv.Command([]string{"loadfile", song})
-	state.SetPaused(false)
-	log.Print("Now playing: ", song)
+	if err := func() error {
+		// download song to temporary file
+		tmpFile, err := os.CreateTemp(os.TempDir(), "emo")
+		if err != nil {
+			return shared.Wrap(err, "could not create temp song file")
+		}
+
+		resp, err := state.Client.GetSongsNameFile(context.Background(), song)
+		if err != nil {
+			return shared.Wrap(err, "could not download song")
+		}
+
+		if _, err := io.Copy(tmpFile, resp.Body); err != nil {
+			return shared.Wrap(err, "could not save song")
+		}
+
+		// remove old temp file, update state
+		os.Remove(state.CurrentFile)
+		state.CurrentFile = tmpFile.Name()
+		state.CurrentSong = song
+
+		// start playback
+		state.Mpv.Command([]string{"loadfile", tmpFile.Name()})
+		state.SetPaused(false)
+		log.Print("Now playing: ", song)
+
+		return nil
+	}(); err != nil {
+		log.Print(err)
+	}
 }
 
 func (state *State) NextSong() string {
 	var song string
 
+	// pop next song from queue if present, else select random
 	if len(state.Queue) > 0 {
 		song = state.Queue[0]
 		state.Queue = state.Queue[1:]
