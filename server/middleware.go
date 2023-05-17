@@ -3,12 +3,12 @@ package main
 import (
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/42LoCo42/emo/shared"
 	"github.com/asdine/storm/v3"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
-	"github.com/pkg/errors"
 )
 
 func errorHandler(err error, c echo.Context) {
@@ -42,11 +42,12 @@ func logRequest(next echo.HandlerFunc) echo.HandlerFunc {
 func authHandler(s *Server) func(echo.HandlerFunc) echo.HandlerFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			tokenString := c.Request().Header.Get(shared.AUTH_HEADER)
-			if len(tokenString) == 0 {
+			if strings.HasPrefix(c.Request().URL.Path, "/login/") {
+				log.Print("Login request, skipping auth check")
 				return next(c)
 			}
 
+			tokenString := c.Request().Header.Get(shared.AUTH_HEADER)
 			claims := jwt.RegisteredClaims{}
 			token, err := jwt.ParseWithClaims(
 				tokenString,
@@ -56,11 +57,13 @@ func authHandler(s *Server) func(echo.HandlerFunc) echo.HandlerFunc {
 				},
 			)
 			if err != nil {
-				return shared.Wrap(err, "Could not parse JWT")
+				log.Print(shared.Wrap(err, "Could not parse JWT"))
+				return c.NoContent(http.StatusForbidden)
 			}
 
 			if !token.Valid {
-				return errors.New("JWT is not valid!")
+				log.Print("JWT is not valid!")
+				return c.NoContent(http.StatusForbidden)
 			}
 
 			log.Printf("JWT is valid for %s!", claims.Subject)
