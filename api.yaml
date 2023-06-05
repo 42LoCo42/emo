@@ -143,7 +143,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: 
+            schema:
               $ref: '#/components/schemas/User'
       responses:
         '200':
@@ -153,7 +153,7 @@ paths:
       description: Get a user by name
       tags:
         - users
-      parameters: 
+      parameters:
         - name: name
           in: path
           required: true
@@ -169,7 +169,7 @@ paths:
                 $ref: '#/components/schemas/User'
         '404':
           description: User not found
-    delete: 
+    delete:
       description: Delete a user
       tags:
         - users
@@ -331,7 +331,7 @@ paths:
                 $ref: '#/components/schemas/Stat'
         '404':
           description: Stat not found
-    delete: 
+    delete:
       description: Delete a stat
       tags:
         - stats
@@ -366,7 +366,7 @@ paths:
       description: Filter stats by user
       tags:
         - stats
-      parameters: 
+      parameters:
         - name: user
           in: path
           required: true
@@ -380,7 +380,7 @@ paths:
             application/json:
               schema:
                 type: array
-                items: 
+                items:
                   $ref: '#/components/schemas/Stat'
         '404':
           description: User not found
@@ -389,7 +389,7 @@ paths:
       description: Filter stats by song
       tags:
         - stats
-      parameters: 
+      parameters:
         - name: song
           in: path
           required: true
@@ -403,7 +403,7 @@ paths:
             application/json:
               schema:
                 type: array
-                items: 
+                items:
                   $ref: '#/components/schemas/Stat'
         '404':
           description: Song not found
