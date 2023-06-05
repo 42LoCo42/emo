@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/42LoCo42/emo/client/daemon/state"
+	"github.com/42LoCo42/emo/daemon/state"
 	"github.com/42LoCo42/emo/shared"
 	"github.com/spf13/cobra"
 )

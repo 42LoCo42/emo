@@ -34,6 +34,7 @@
           bashInteractive
           go
           gopls
+          tree
         ];
       in
       {
@@ -41,14 +42,14 @@
           pname = "emo";
           version = "1.0.0-indev";
           src = ./.;
-          vendorSha256 = "sha256-pe8Q5MHg0nJAUr+7iFNUjOB0GZClUVRGtT/ICEiuHjA=";
+          vendorSha256 = "sha256-LP0VPGzvkHAhUyfsf9JnyRUHYYmHBLKaAGTH3u9Ekk4=";
 
           inherit nativeBuildInputs buildInputs;
 
           prePatch = "bash generate.sh";
         };
 
-        apps = mkApps [ "client" "server" ];
+        apps = mkApps [ "cli" "daemon" "server" ];
 
         devShell = pkgs.mkShell {
           packages = nativeBuildInputs ++ buildInputs ++ shellTools;

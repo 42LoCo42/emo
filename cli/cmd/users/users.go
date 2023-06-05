@@ -8,7 +8,7 @@ import (
 	"net/http"
 
 	"github.com/42LoCo42/emo/api"
-	"github.com/42LoCo42/emo/client/util"
+	"github.com/42LoCo42/emo/cli/util"
 	"github.com/42LoCo42/emo/shared"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -42,7 +42,7 @@ func list() *cobra.Command {
 		Use:   "list",
 		Short: "Get a list of all users",
 		Run: func(cmd *cobra.Command, args []string) {
-			resp, err := util.Client().GetUsers(context.Background())
+			resp, err := shared.Client().GetUsers(context.Background())
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "get users request failed")
 			}
@@ -75,7 +75,7 @@ func set() *cobra.Command {
 
 			// get user
 
-			resp, err := util.Client().GetUsersName(context.Background(), username)
+			resp, err := shared.Client().GetUsersName(context.Background(), username)
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "get user by name request failed")
 			}
@@ -114,7 +114,7 @@ func set() *cobra.Command {
 
 			// post changed user
 
-			resp, err = util.Client().PostUsers(context.Background(), *data.JSON200)
+			resp, err = shared.Client().PostUsers(context.Background(), *data.JSON200)
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "post user request failed")
 			}
@@ -152,7 +152,7 @@ func get() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			username := args[0]
 
-			resp, err := util.Client().GetUsersName(context.Background(), username)
+			resp, err := shared.Client().GetUsersName(context.Background(), username)
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "get user by name request failed")
 			}
@@ -177,7 +177,7 @@ func del() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			username := args[0]
 
-			resp, err := util.Client().DeleteUsersName(context.Background(), username)
+			resp, err := shared.Client().DeleteUsersName(context.Background(), username)
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "delete user request failed")
 			}

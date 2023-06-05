@@ -12,7 +12,6 @@ import (
 	"os"
 
 	"github.com/42LoCo42/emo/api"
-	"github.com/42LoCo42/emo/client/util"
 	"github.com/42LoCo42/emo/shared"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -40,7 +39,7 @@ func list() *cobra.Command {
 		Use:   "list",
 		Short: "Get a list of all songs",
 		Run: func(cmd *cobra.Command, args []string) {
-			resp, err := util.Client().GetSongs(context.Background())
+			resp, err := shared.Client().GetSongs(context.Background())
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "get songs request failed")
 			}
@@ -74,7 +73,7 @@ func set() *cobra.Command {
 				Name: songname,
 			}
 
-			resp, err := util.Client().GetSongsName(context.Background(), songname)
+			resp, err := shared.Client().GetSongsName(context.Background(), songname)
 			if err != nil || (resp.StatusCode != http.StatusOK &&
 				resp.StatusCode != http.StatusNotFound) {
 				shared.Die(err, "get song requesst failed")
@@ -130,7 +129,7 @@ func set() *cobra.Command {
 			writer.Close()
 
 			// upload song
-			resp, err = util.Client().PostSongsWithBody(
+			resp, err = shared.Client().PostSongsWithBody(
 				context.Background(),
 				"multipart/form-data; boundary = "+writer.Boundary(),
 				buf,
@@ -161,7 +160,7 @@ func get() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			songname := args[0]
 
-			resp, err := util.Client().GetSongsName(context.Background(), songname)
+			resp, err := shared.Client().GetSongsName(context.Background(), songname)
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "get song request failed")
 			}
@@ -184,7 +183,7 @@ func del() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			songname := args[0]
 
-			resp, err := util.Client().DeleteSongsName(context.Background(), songname)
+			resp, err := shared.Client().DeleteSongsName(context.Background(), songname)
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "delete song request failed")
 			}
@@ -202,7 +201,7 @@ func file() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			songname := args[0]
 
-			resp, err := util.Client().GetSongsNameFile(context.Background(), songname)
+			resp, err := shared.Client().GetSongsNameFile(context.Background(), songname)
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "get song file request failed")
 			}

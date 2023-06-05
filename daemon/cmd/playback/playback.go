@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/42LoCo42/emo/client/daemon/state"
+	"github.com/42LoCo42/emo/daemon/state"
 	"github.com/42LoCo42/emo/shared"
 	"github.com/spf13/cobra"
 )
@@ -32,7 +32,7 @@ func show(state *state.State) *cobra.Command {
 		Use:   "show",
 		Short: "Show the currently playing song",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprintln(cmd.OutOrStdout(), "song:   ", state.CurrentSong)
+			fmt.Fprintln(cmd.OutOrStdout(), "song:   ", state.CurrentStat.Song)
 			fmt.Fprintln(cmd.OutOrStdout(), "time:   ", state.Time)
 			fmt.Fprintln(cmd.OutOrStdout(), "percent:", state.Percentage)
 			fmt.Fprintln(cmd.OutOrStdout(), "paused: ", state.Paused)
@@ -45,7 +45,12 @@ func next(state *state.State) *cobra.Command {
 		Use:   "next",
 		Short: "Move to the next song (either from queue or randomly selected)",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprintln(cmd.OutOrStdout(), "song:", state.NextSong())
+			song, err := state.NextSong()
+			if err != nil {
+				fmt.Fprintln(cmd.ErrOrStderr(), "error:", err)
+			} else {
+				fmt.Fprintln(cmd.OutOrStdout(), "song:", song)
+			}
 		},
 	}
 }

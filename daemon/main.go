@@ -1,4 +1,4 @@
-package daemon
+package main
 
 import (
 	"bufio"
@@ -10,29 +10,33 @@ import (
 	"os"
 	"strings"
 
-	"github.com/42LoCo42/emo/client/daemon/playback"
-	"github.com/42LoCo42/emo/client/daemon/queue"
-	"github.com/42LoCo42/emo/client/daemon/state"
+	"github.com/42LoCo42/emo/daemon/cmd/playback"
+	"github.com/42LoCo42/emo/daemon/cmd/queue"
+	"github.com/42LoCo42/emo/daemon/state"
 	"github.com/42LoCo42/emo/shared"
 	"github.com/spf13/cobra"
 )
 
-func Run() error {
-	socketPath, err := GetSocketPath()
-	if err != nil {
-		return shared.Wrap(err, "could not get socket path")
+func main() {
+	if err := shared.LoadConfig(); err != nil {
+		log.Fatal(shared.Wrap(err, "could not load config"))
 	}
 
+	if err := shared.InitClient(); err != nil {
+		log.Fatal(shared.Wrap(err, "could not init API client"))
+	}
+
+	socketPath := shared.GetConfig().Socket
 	os.Remove(socketPath)
 
 	listener, err := net.Listen("unix", socketPath)
 	if err != nil {
-		return shared.Wrap(err, "could not open listener")
+		log.Fatal(shared.Wrap(err, "could not open listener"))
 	}
 
-	state, err := state.New()
+	state, err := state.NewState()
 	if err != nil {
-		return shared.Wrap(err, "could not create daemon state")
+		log.Fatal(shared.Wrap(err, "could not create daemon state"))
 	}
 
 	go state.Mpv.Run()
@@ -41,7 +45,7 @@ func Run() error {
 	for {
 		client, err := listener.Accept()
 		if err != nil {
-			return shared.Wrap(err, "could not accept client")
+			log.Fatal(shared.Wrap(err, "could not accept client"))
 		}
 
 		go handleClient(client, state)
@@ -49,10 +53,10 @@ func Run() error {
 }
 
 func handleClient(client net.Conn, state *state.State) {
+	log.Print("Connection received from ", client.LocalAddr())
 	defer client.Close()
 
 	cmd := &cobra.Command{}
-
 	cmd.AddCommand(
 		queue.Cmd(state),
 		playback.Cmd(state),

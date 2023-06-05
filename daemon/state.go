@@ -1,4 +1,4 @@
-package state
+package main
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"github.com/42LoCo42/emo/api"
-	"github.com/42LoCo42/emo/client/util"
+	"github.com/42LoCo42/emo/daemon/util"
 	"github.com/42LoCo42/emo/shared"
 	"github.com/gen2brain/go-mpv"
 )
@@ -17,12 +17,12 @@ import (
 type State struct {
 	Client *api.Client
 	Stats  []api.Stat
-	Deltas []api.Stat
+	Deltas map[api.StatID]api.Stat
 
 	Queue []string
 
 	CurrentFile string
-	CurrentSong string
+	CurrentStat api.Stat
 	Time        float64
 	Percentage  int64
 	Paused      bool
@@ -30,10 +30,10 @@ type State struct {
 	Mpv *util.Mpv
 }
 
-func New() (state *State, err error) {
+func NewState() (state *State, err error) {
 	// initial state
 	state = &State{
-		Client: util.Client(),
+		Client: shared.Client(),
 		Paused: true,
 		Mpv: &util.Mpv{
 			Mpv: mpv.Create(),
@@ -56,10 +56,7 @@ func New() (state *State, err error) {
 	state.Stats = *data.JSON200
 
 	// create empty deltas - we just need the ID for association
-	state.Deltas = make([]api.Stat, len(state.Stats))
-	for i, stat := range state.Stats {
-		state.Deltas[i] = api.Stat{ID: stat.ID}
-	}
+	state.Deltas = map[api.StatID]api.Stat{}
 
 	// init MPV
 	if err := state.Mpv.Initialize(); err != nil {
@@ -81,11 +78,17 @@ func New() (state *State, err error) {
 
 	// stop handler
 	state.Mpv.OnStop = func(reason int) {
-		// TODO add count & boost updates
+		state.Deltas[state.CurrentStat.ID] = api.Stat{
+			Boost: 0,
+			Count: 0,
+		}
+
 		switch reason {
 		case util.STOP_REASON_EOF:
 			log.Print("normal stop, calling next")
-			state.NextSong()
+			if err := state.NextSong(); err != nil {
+				log.Print(err)
+			}
 		case util.STOP_REASON_STOP:
 			log.Print("early stop, no action")
 		case util.STOP_REASON_ERROR:
@@ -99,55 +102,68 @@ func New() (state *State, err error) {
 }
 
 func (state *State) SyncStats() error {
-	panic("TODO")
-}
-
-func (state *State) SelectSong(song string) {
-	if err := func() error {
-		// download song to temporary file
-		tmpFile, err := os.CreateTemp(os.TempDir(), "emo")
-		if err != nil {
-			return shared.Wrap(err, "could not create temp song file")
-		}
-
-		resp, err := state.Client.GetSongsNameFile(context.Background(), song)
-		if err != nil {
-			return shared.Wrap(err, "could not download song")
-		}
-
-		if _, err := io.Copy(tmpFile, resp.Body); err != nil {
-			return shared.Wrap(err, "could not save song")
-		}
-
-		// remove old temp file, update state
-		os.Remove(state.CurrentFile)
-		state.CurrentFile = tmpFile.Name()
-		state.CurrentSong = song
-
-		// start playback
-		state.Mpv.Command([]string{"loadfile", tmpFile.Name()})
-		state.SetPaused(false)
-		log.Print("Now playing: ", song)
-
-		return nil
-	}(); err != nil {
-		log.Print(err)
+	values := make([]api.Stat, 0, len(state.Deltas))
+	for _, v := range state.Deltas {
+		values = append(values, v)
 	}
+
+	resp, err := state.Client.PostStatsBulkadd(context.Background(), values)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return shared.Wrap(err, "stat bulk update failed")
+	}
+
+	return nil
 }
 
-func (state *State) NextSong() string {
-	var song string
-
+func (state *State) NextSong() error {
 	// pop next song from queue if present, else select random
 	if len(state.Queue) > 0 {
-		song = state.Queue[0]
+		name := state.Queue[0]
 		state.Queue = state.Queue[1:]
+
+		for _, stat := range state.Stats {
+			if stat.Song == name {
+				state.CurrentStat = stat
+				break
+			}
+		}
+
+		return shared.Wrap(nil, fmt.Sprintf("song %s not found!", name))
 	} else {
-		song = util.RandomStat(&state.Stats).Song
+		state.CurrentStat = util.RandomStat(&state.Stats)
 	}
 
-	state.SelectSong(song)
-	return song
+	return shared.Wrap(state.PlaySong(), "could not play song")
+}
+
+func (state *State) PlaySong() error {
+	// download song to temporary file
+	tmpFile, err := os.CreateTemp(os.TempDir(), "emo")
+	if err != nil {
+		return shared.Wrap(err, "could not create temp song file")
+	}
+
+	resp, err := state.Client.GetSongsNameFile(
+		context.Background(),
+		state.CurrentStat.Song,
+	)
+	if err != nil {
+		return shared.Wrap(err, "could not download song")
+	}
+	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
+		return shared.Wrap(err, "could not save song")
+	}
+
+	// remove old temp file, update state
+	os.Remove(state.CurrentFile)
+	state.CurrentFile = tmpFile.Name()
+
+	// start playback
+	state.Mpv.Command([]string{"loadfile", tmpFile.Name()})
+	state.SetPaused(false)
+	log.Print("Now playing: ", state.CurrentStat.Song)
+
+	return nil
 }
 
 func (state *State) SetPaused(paused bool) {

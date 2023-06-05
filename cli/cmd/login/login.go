@@ -3,7 +3,7 @@ package login
 import (
 	"log"
 
-	"github.com/42LoCo42/emo/client/util"
+	"github.com/42LoCo42/emo/cli/util"
 	"github.com/42LoCo42/emo/shared"
 	"github.com/spf13/cobra"
 )
@@ -20,12 +20,13 @@ var Login = &cobra.Command{
 			shared.Die(err, "could not read password")
 		}
 
-		token, err := util.Login(util.Client(), []byte(username), password)
+		token, err := util.Login(shared.Client(), []byte(username), password)
 		if err != nil {
 			shared.Die(err, "login failed")
 		}
 
-		if err := util.SaveToken(token); err != nil {
+		shared.GetConfig().Token = token
+		if err := shared.SaveConfig(); err != nil {
 			shared.Die(err, "could not save token")
 		}
 

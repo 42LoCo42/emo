@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"github.com/42LoCo42/emo/api"
-	"github.com/42LoCo42/emo/client/util"
 	"github.com/42LoCo42/emo/shared"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -46,7 +45,7 @@ func list() *cobra.Command {
 		Use:   "list",
 		Short: "Get a list of statistics",
 		Run: func(cmd *cobra.Command, args []string) {
-			resp, err := util.Client().GetStats(context.Background())
+			resp, err := shared.Client().GetStats(context.Background())
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "get stats request failed")
 			}
@@ -85,7 +84,7 @@ func set() *cobra.Command {
 			// get stat
 			stat := api.Stat{ID: id}
 
-			resp, err := util.Client().GetStatsId(context.Background(), id)
+			resp, err := shared.Client().GetStatsId(context.Background(), id)
 			if err != nil || (resp.StatusCode != http.StatusOK &&
 				resp.StatusCode != http.StatusNotFound) {
 				shared.Die(err, "get stat request failed")
@@ -119,7 +118,7 @@ func set() *cobra.Command {
 			})
 
 			// upload new stat
-			resp, err = util.Client().PostStats(context.Background(), stat)
+			resp, err = shared.Client().PostStats(context.Background(), stat)
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "post stat request failed")
 			}
@@ -167,7 +166,7 @@ func get() *cobra.Command {
 				shared.Die(err, "could not parse ID")
 			}
 
-			resp, err := util.Client().GetStatsId(context.Background(), id)
+			resp, err := shared.Client().GetStatsId(context.Background(), id)
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "get stat request failed")
 			}
@@ -193,7 +192,7 @@ func del() *cobra.Command {
 				shared.Die(err, "could not parse ID")
 			}
 
-			resp, err := util.Client().DeleteStatsId(context.Background(), id)
+			resp, err := shared.Client().DeleteStatsId(context.Background(), id)
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "get stat request failed")
 			}
@@ -208,7 +207,7 @@ func ofMyself() *cobra.Command {
 		Use:   "ofMyself",
 		Short: "Get the statistics of the currently logged in user",
 		Run: func(cmd *cobra.Command, args []string) {
-			resp, err := util.Client().GetStatsUser(context.Background())
+			resp, err := shared.Client().GetStatsUser(context.Background())
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "get stats of user request failed")
 			}
@@ -234,7 +233,7 @@ func ofUser() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			username := args[0]
 
-			resp, err := util.Client().GetStatsUserUser(context.Background(), username)
+			resp, err := shared.Client().GetStatsUserUser(context.Background(), username)
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "get stats of user request failed")
 			}
@@ -260,7 +259,7 @@ func ofSong() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			songname := args[0]
 
-			resp, err := util.Client().GetStatsSongSong(context.Background(), songname)
+			resp, err := shared.Client().GetStatsSongSong(context.Background(), songname)
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "get stats of song request failed")
 			}
