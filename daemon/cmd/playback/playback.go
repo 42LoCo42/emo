@@ -32,10 +32,14 @@ func show(state *state.State) *cobra.Command {
 		Use:   "show",
 		Short: "Show the currently playing song",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprintln(cmd.OutOrStdout(), "song:   ", state.CurrentStat.Song)
-			fmt.Fprintln(cmd.OutOrStdout(), "time:   ", state.Time)
-			fmt.Fprintln(cmd.OutOrStdout(), "percent:", state.Percentage)
-			fmt.Fprintln(cmd.OutOrStdout(), "paused: ", state.Paused)
+			if state.CurrentStat == nil {
+				fmt.Fprintln(cmd.ErrOrStderr(), "error: no song is playing!")
+			} else {
+				fmt.Fprintln(cmd.OutOrStdout(), "song:   ", state.CurrentStat.Song)
+				fmt.Fprintln(cmd.OutOrStdout(), "time:   ", state.Time)
+				fmt.Fprintln(cmd.OutOrStdout(), "percent:", state.Percentage)
+				fmt.Fprintln(cmd.OutOrStdout(), "paused: ", state.Paused)
+			}
 		},
 	}
 }

@@ -14,6 +14,12 @@ import (
 	"github.com/gen2brain/go-mpv"
 )
 
+const (
+	BOOST_SUB_LO = 2
+	BOOST_SUB_HI = 20
+	BOOST_ADD_LO = 80
+)
+
 type State struct {
 	Client *api.Client
 	Stats  []api.Stat
@@ -84,8 +90,10 @@ func NewState() (state *State, err error) {
 			if _, err := state.NextSong(); err != nil {
 				log.Print(err)
 			}
+
 		case util.STOP_REASON_STOP:
-			log.Print("early stop, no action")
+			// do nothing
+
 		case util.STOP_REASON_ERROR:
 			log.Print("ERROR - halting daemon!")
 		}
@@ -110,6 +118,23 @@ func (state *State) SyncStats() error {
 	return nil
 }
 
+func (state *State) WithCurrentDelta(f func(*api.Stat)) {
+	if state.CurrentStat != nil {
+		delta, ok := state.Deltas[state.CurrentStat.ID]
+		if !ok {
+			delta = api.Stat{
+				ID:   state.CurrentStat.ID,
+				Song: state.CurrentStat.Song,
+				User: state.CurrentStat.User,
+			}
+		}
+
+		f(&delta)
+		state.Deltas[state.CurrentStat.ID] = delta
+		log.Printf("%#v", state.Deltas)
+	}
+}
+
 func (state *State) NextSong() (string, error) {
 	var newStat api.Stat
 
@@ -130,20 +155,15 @@ func (state *State) NextSong() (string, error) {
 		newStat = util.RandomStat(&state.Stats)
 	}
 
-	// TODO update old/current stat
-	if state.CurrentStat != nil {
-		stat, ok := state.Deltas[state.CurrentStat.ID]
-		if !ok {
-			stat = api.Stat{
-				ID:   state.CurrentStat.ID,
-				Song: state.CurrentStat.Song,
-			}
+	state.WithCurrentDelta(func(delta *api.Stat) {
+		p := state.Percentage
+		if p >= BOOST_SUB_LO && p <= BOOST_SUB_HI {
+			delta.Boost--
+		} else if p >= BOOST_ADD_LO {
+			delta.Boost++
+			delta.Count++
 		}
-
-		stat.Count++
-		state.Deltas[state.CurrentStat.ID] = stat
-		log.Printf("%#v", state.Deltas)
-	}
+	})
 
 	state.CurrentStat = &newStat
 	if err := state.PlaySong(); err != nil {
@@ -189,5 +209,12 @@ func (state *State) SetPaused(paused bool) {
 }
 
 func (state *State) Move(time float64) {
+	// TODO doesn't work, time is not absolute
+	// if time == 0 && state.Percentage >= BOOST_ADD_LO {
+	// 	state.WithCurrentDelta(func(delta *api.Stat) {
+	// 		delta.Count++
+	// 	})
+	// }
+
 	state.Mpv.Command([]string{"seek", fmt.Sprint(time)})
 }

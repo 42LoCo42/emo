@@ -43,6 +43,7 @@ func main() {
 	server.db.Save(&admin)
 
 	e := echo.New()
+	e.HideBanner = true
 	api.RegisterHandlers(e, server)
 
 	e.HTTPErrorHandler = errorHandler

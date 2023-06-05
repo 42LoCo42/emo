@@ -128,26 +128,30 @@ func set() *cobra.Command {
 		},
 	}
 
-	user = cmd.Flags().String(
+	user = cmd.Flags().StringP(
 		"user",
+		"u",
 		"",
 		"The user of this statistic",
 	)
 
-	song = cmd.Flags().String(
+	song = cmd.Flags().StringP(
 		"song",
+		"s",
 		"",
 		"The song of this statistic",
 	)
 
-	count = cmd.Flags().Int64(
+	count = cmd.Flags().Int64P(
 		"count",
+		"c",
 		0,
 		"The count of this statistic",
 	)
 
-	boost = cmd.Flags().Int64(
+	boost = cmd.Flags().Int64P(
 		"boost",
+		"b",
 		0,
 		"The boost of this statistic",
 	)
