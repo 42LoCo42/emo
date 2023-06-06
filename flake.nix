@@ -3,6 +3,8 @@
 
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.ref-merge.url = "github:42loco42/ref-merge";
+  inputs.ref-merge.inputs.nixpkgs.follows = "nixpkgs";
+  inputs.ref-merge.inputs.flake-utils.follows = "flake-utils";
 
   outputs = { self, nixpkgs, flake-utils, ref-merge }:
     flake-utils.lib.eachDefaultSystem (system:
