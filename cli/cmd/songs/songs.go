@@ -1,7 +1,6 @@
 package songs
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -88,9 +87,33 @@ func set() *cobra.Command {
 				song = *data.JSON200
 			}
 
-			// build post body
-			buf := bytes.NewBuffer([]byte{})
-			writer := multipart.NewWriter(buf)
+			done := make(chan int) // channel for waiting
+			pR, pW := io.Pipe()    // pipe for data exchange
+			body := multipart.NewWriter(pW)
+
+			// sender goroutine
+			go func() {
+				// upload song
+				resp, err = shared.Client().PostSongsWithBody(
+					context.Background(),
+					"multipart/form-data; boundary = "+body.Boundary(),
+					pR,
+				)
+				if err != nil || resp.StatusCode != http.StatusOK {
+					shared.Die(err, "post song request failed")
+				}
+
+				done <- 0 // signal done
+			}()
+
+			// write info to multipart body
+			infoWriter, err := body.CreateFormField("Info")
+			if err != nil {
+				shared.Die(err, "could not create info field")
+			}
+			if err := json.NewEncoder(infoWriter).Encode(song); err != nil {
+				shared.Die(err, "could not write to info field")
+			}
 
 			// handle flags
 			cmd.Flags().Visit(func(f *pflag.Flag) {
@@ -100,7 +123,7 @@ func set() *cobra.Command {
 
 				switch f.Name {
 				case "file":
-					fileWriter, err := writer.CreateFormFile("File", *file)
+					fileWriter, err := body.CreateFormFile("File", *file)
 					if err != nil {
 						shared.Die(err, "could not create file field")
 					}
@@ -110,34 +133,16 @@ func set() *cobra.Command {
 						shared.Die(err, "could not open song file")
 					}
 
+					// write song to multipart body
 					if _, err := io.Copy(fileWriter, file); err != nil {
 						shared.Die(err, "could not write to file field")
 					}
 				}
 			})
 
-			// write info to multipart body
-			infoWriter, err := writer.CreateFormField("Info")
-			if err != nil {
-				shared.Die(err, "could not create info field")
-			}
-
-			if err := json.NewEncoder(infoWriter).Encode(song); err != nil {
-				shared.Die(err, "could not write to info field")
-			}
-
-			writer.Close()
-
-			// upload song
-			resp, err = shared.Client().PostSongsWithBody(
-				context.Background(),
-				"multipart/form-data; boundary = "+writer.Boundary(),
-				buf,
-			)
-			if err != nil || resp.StatusCode != http.StatusOK {
-				shared.Die(err, "post song request failed")
-			}
-
+			body.Close() // no more data in body
+			pW.Close()   // request finished
+			<-done       // wait for sender to quit
 			log.Print("Done!")
 		},
 	}

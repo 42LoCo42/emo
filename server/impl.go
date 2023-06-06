@@ -105,8 +105,8 @@ func (s *Server) GetSongsName(ctx echo.Context, name string) error {
 
 // GetSongsNameFile implements api.ServerInterface
 func (s *Server) GetSongsNameFile(ctx echo.Context, name string) error {
-	var song api.SongFile
-	if err := s.db.Get(SONGFILE_BUCKET, name, &song); err != nil {
+	song, err := s.db.GetBytes(SONGFILE_BUCKET, name)
+	if err != nil {
 		return err
 	}
 
@@ -182,6 +182,8 @@ func (s *Server) GetUsersName(ctx echo.Context, name string) error {
 
 // PostSongs implements api.ServerInterface
 func (s *Server) PostSongs(ctx echo.Context) error {
+	log.Print("post start")
+
 	tx, err := s.db.Begin(true)
 	if err != nil {
 		return shared.Wrap(err, "could not start transaction")
@@ -209,6 +211,7 @@ func (s *Server) PostSongs(ctx echo.Context) error {
 
 	files := form.File["File"]
 	if len(files) == 1 {
+		log.Print("accessing file")
 		file, err := files[0].Open()
 		if err != nil {
 			return shared.Wrap(err, "could not open song file")
@@ -219,12 +222,16 @@ func (s *Server) PostSongs(ctx echo.Context) error {
 			return shared.Wrap(err, "could not read song file")
 		}
 
-		if err := tx.Set(SONGFILE_BUCKET, info.Name, buf); err != nil {
+		log.Print("copied")
+
+		if err := tx.SetBytes(SONGFILE_BUCKET, info.Name, buf); err != nil {
 			return shared.Wrap(err, "could not save song file")
 		}
 	}
 
-	return tx.Commit()
+	err = tx.Commit()
+	log.Print("tx done")
+	return err
 }
 
 // PostStats implements api.ServerInterface
