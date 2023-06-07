@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/42LoCo42/emo/api"
 	"github.com/42LoCo42/emo/shared"
 	"github.com/asdine/storm/v3"
 	"github.com/golang-jwt/jwt/v5"
@@ -65,8 +66,13 @@ func authHandler(s *Server) func(echo.HandlerFunc) echo.HandlerFunc {
 				return c.NoContent(http.StatusForbidden)
 			}
 
-			log.Printf("JWT is valid for %s!", claims.Subject)
-			c.Set("user", claims.Subject)
+			var user api.User
+			if err := s.db.One("Name", claims.Subject, &user); err != nil {
+				return c.NoContent(http.StatusForbidden)
+			}
+
+			log.Printf("JWT is valid for %s!", user.Name)
+			c.Set("user", user)
 
 			return next(c)
 		}

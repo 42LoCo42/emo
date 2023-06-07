@@ -143,7 +143,7 @@ func (s *Server) GetStatsId(ctx echo.Context, id uint64) error {
 
 func (s *Server) GetStatsUser(ctx echo.Context) error {
 	var stats []api.Stat
-	if err := s.db.Find("User", ctx.Get("user"), &stats); err != nil {
+	if err := s.db.Find("User", ctx.Get("user").(api.User).Name, &stats); err != nil {
 		return err
 	}
 
