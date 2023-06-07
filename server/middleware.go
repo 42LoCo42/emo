@@ -13,7 +13,6 @@ import (
 
 func errorHandler(err error, c echo.Context) {
 	if shared.RCause(err) == storm.ErrNotFound {
-		log.Print(err)
 		c.NoContent(http.StatusNotFound)
 	} else {
 		log.Printf(
