@@ -47,32 +47,30 @@ components:
           format: binary
           description: The public key of this user
           x-go-type: "[]byte"
-    Song:
-      type: object
-      required:
-        - Info
-        - File
-      properties:
-        Info:
-          $ref: '#/components/schemas/SongInfo'
-        File:
-          $ref: '#/components/schemas/SongFile'
+
+    SongID:
+      type: string
+      example: 8b2e9f35f713bff79134b85db1b4d3f808a72cd3cf5bde2d46e3999d521fdd8d
     SongName:
       type: string
       example: "good stuff/vibe.opus"
-    SongInfo:
+    Song:
       type: object
       required:
+        - ID
         - Name
       properties:
-        Name:
-          $ref: '#/components/schemas/SongName'
+        ID:
+          $ref: '#/components/schemas/SongID'
           x-oapi-codegen-extra-tags:
             storm: id
+        Name:
+          $ref: '#/components/schemas/SongName'
     SongFile:
       type: string
       format: binary
       x-go-type: "[]byte"
+
     StatID:
       type: integer
       format: uint64
@@ -198,7 +196,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/SongInfo'
+                  $ref: '#/components/schemas/Song'
     post:
       description: Create or update a song
       tags:
@@ -207,7 +205,12 @@ paths:
         content:
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Song'
+              type: object
+              properties:
+                Song:
+                  $ref: '#/components/schemas/Song'
+                File:
+                  $ref: '#/components/schemas/SongFile'
       responses:
         '200':
           description: Update successfully applied
@@ -229,7 +232,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SongInfo'
+                $ref: '#/components/schemas/Song'
         '404':
           description: Song not found
     delete:

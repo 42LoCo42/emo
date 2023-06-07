@@ -1,10 +1,14 @@
 package main
 
 import (
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -16,11 +20,18 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-const SONGFILE_BUCKET = "songfiles"
-
 type Server struct {
 	db     *storm.DB
 	jwtKey []byte
+}
+
+func (s *Server) getSongByName(name string) (*api.Song, error) {
+	var song api.Song
+	if err := s.db.One("Name", name, &song); err != nil {
+		return nil, shared.Wrap(err, "could not find song")
+	}
+
+	return &song, nil
 }
 
 // GetLoginUser implements api.ServerInterface
@@ -55,23 +66,20 @@ func (s *Server) GetLoginUser(ctx echo.Context, name string) error {
 
 // DeleteSongsName implements api.ServerInterface
 func (s *Server) DeleteSongsName(ctx echo.Context, name string) error {
-	tx, err := s.db.Begin(true)
+	song, err := s.getSongByName(name)
 	if err != nil {
-		return shared.Wrap(err, "could not create transaction")
-	}
-	defer tx.Rollback()
-
-	if err := tx.DeleteStruct(&api.SongInfo{
-		Name: name,
-	}); err != nil {
 		return err
 	}
 
-	if err := tx.Delete(SONGFILE_BUCKET, name); err != nil {
-		return err
+	if err := s.db.DeleteStruct(song); err != nil {
+		return shared.Wrap(err, "could not delete song from DB")
 	}
 
-	return tx.Commit()
+	if err := os.Remove(song.ID); err != nil {
+		return shared.Wrap(err, "could not delete song file")
+	}
+
+	return ctx.NoContent(http.StatusOK)
 }
 
 // DeleteStatsId implements api.ServerInterface
@@ -86,7 +94,7 @@ func (s *Server) DeleteUsersName(ctx echo.Context, name string) error {
 
 // GetSongs implements api.ServerInterface
 func (s *Server) GetSongs(ctx echo.Context) error {
-	var songs []api.SongInfo
+	var songs []api.Song
 	if err := s.db.All(&songs); err != nil {
 		return err
 	}
@@ -95,8 +103,8 @@ func (s *Server) GetSongs(ctx echo.Context) error {
 
 // GetSongsName implements api.ServerInterface
 func (s *Server) GetSongsName(ctx echo.Context, name string) error {
-	var song api.SongInfo
-	if err := s.db.One("Name", name, &song); err != nil {
+	song, err := s.getSongByName(name)
+	if err != nil {
 		return err
 	}
 
@@ -105,12 +113,12 @@ func (s *Server) GetSongsName(ctx echo.Context, name string) error {
 
 // GetSongsNameFile implements api.ServerInterface
 func (s *Server) GetSongsNameFile(ctx echo.Context, name string) error {
-	song, err := s.db.GetBytes(SONGFILE_BUCKET, name)
+	song, err := s.getSongByName(name)
 	if err != nil {
 		return err
 	}
 
-	return ctx.Blob(http.StatusOK, "application/octet-stream", song)
+	return ctx.File(song.ID)
 }
 
 // GetStats implements api.ServerInterface
@@ -182,14 +190,6 @@ func (s *Server) GetUsersName(ctx echo.Context, name string) error {
 
 // PostSongs implements api.ServerInterface
 func (s *Server) PostSongs(ctx echo.Context) error {
-	log.Print("post start")
-
-	tx, err := s.db.Begin(true)
-	if err != nil {
-		return shared.Wrap(err, "could not start transaction")
-	}
-	defer tx.Rollback()
-
 	form, err := ctx.MultipartForm()
 	if err != nil {
 		return shared.Wrap(err, "could not get multipart form")
@@ -200,38 +200,51 @@ func (s *Server) PostSongs(ctx echo.Context) error {
 		return ctx.NoContent(http.StatusBadRequest)
 	}
 
-	var info api.SongInfo
+	var info api.Song
 	if err := json.NewDecoder(strings.NewReader(infos[0])).Decode(&info); err != nil {
 		return shared.Wrap(err, "could not decode song info")
 	}
 
-	if err := tx.Save(&info); err != nil {
+	orig, err := s.getSongByName(info.Name)
+	if err != nil && shared.RCause(err) != storm.ErrNotFound {
+		return shared.Wrap(err, "could not get original song")
+	}
+
+	if orig != nil {
+		info.ID = orig.ID
+	} else {
+		data := make([]byte, 32)
+		if _, err := rand.Read(data); err != nil {
+			return shared.Wrap(err, "could not generate random ID")
+		}
+
+		info.ID = hex.EncodeToString(data)
+	}
+
+	if err := s.db.Save(&info); err != nil {
 		return shared.Wrap(err, "could not save song info")
 	}
 
 	files := form.File["File"]
 	if len(files) == 1 {
-		log.Print("accessing file")
-		file, err := files[0].Open()
+		multipartFile, err := files[0].Open()
 		if err != nil {
 			return shared.Wrap(err, "could not open song file")
 		}
+		defer multipartFile.Close()
 
-		buf := make([]byte, files[0].Size)
-		if _, err := file.Read(buf); err != nil {
-			return shared.Wrap(err, "could not read song file")
+		file, err := os.Create(info.ID)
+		if err != nil {
+			return shared.Wrap(err, "could not create file")
 		}
+		defer file.Close()
 
-		log.Print("copied")
-
-		if err := tx.SetBytes(SONGFILE_BUCKET, info.Name, buf); err != nil {
-			return shared.Wrap(err, "could not save song file")
+		if _, err := io.Copy(file, multipartFile); err != nil {
+			return shared.Wrap(err, "could not copy multipart body to file")
 		}
 	}
 
-	err = tx.Commit()
-	log.Print("tx done")
-	return err
+	return ctx.NoContent(http.StatusOK)
 }
 
 // PostStats implements api.ServerInterface

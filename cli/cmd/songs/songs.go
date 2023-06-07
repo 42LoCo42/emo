@@ -68,9 +68,7 @@ func set() *cobra.Command {
 			songname := args[0]
 
 			// get song info
-			song := api.SongInfo{
-				Name: songname,
-			}
+			song := api.Song{Name: songname}
 
 			resp, err := shared.Client().GetSongsName(context.Background(), songname)
 			if err != nil || (resp.StatusCode != http.StatusOK &&
@@ -176,6 +174,7 @@ func get() *cobra.Command {
 			}
 
 			fmt.Println("Song name: ", data.JSON200.Name)
+			fmt.Println("Song path:", data.JSON200.ID)
 		},
 	}
 }

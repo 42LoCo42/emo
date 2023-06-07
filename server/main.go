@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"os"
 
@@ -12,6 +14,10 @@ import (
 )
 
 func main() {
+	address := flag.String("a", "", "Address to listen on")
+	port := flag.Int("p", 37812, "Port to listen on")
+	flag.Parse()
+
 	var err error
 	server := new(Server)
 
@@ -42,6 +48,13 @@ func main() {
 	}
 	server.db.Save(&admin)
 
+	if err := os.MkdirAll("songs", 0755); err != nil {
+		shared.Die(err, "could not create songs directory")
+	}
+	if err := os.Chdir("songs"); err != nil {
+		shared.Die(err, "could not chdir to songs directory")
+	}
+
 	e := echo.New()
 	e.HideBanner = true
 	api.RegisterHandlers(e, server)
@@ -52,7 +65,7 @@ func main() {
 		authHandler(server),
 	)
 
-	if err := e.Start(":37812"); err != nil {
+	if err := e.Start(fmt.Sprintf("%s:%d", *address, *port)); err != nil {
 		log.Fatal(err)
 	}
 }

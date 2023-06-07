@@ -12,6 +12,10 @@ type StackTracer interface {
 	StackTrace() errors.StackTrace
 }
 
+type Causer interface {
+	Cause() error
+}
+
 func Die(err error, msg string) {
 	err = Wrap(err, msg)
 	log.Print(err)
@@ -32,5 +36,16 @@ func Wrap(err error, message string) error {
 		return errors.New(message)
 	} else {
 		return errors.Wrap(err, message)
+	}
+}
+
+func RCause(err error) error {
+	for {
+		causer, ok := err.(Causer)
+		if !ok {
+			return err
+		}
+
+		err = causer.Cause()
 	}
 }
