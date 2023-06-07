@@ -74,15 +74,20 @@ func set() *cobra.Command {
 			username := args[0]
 
 			// get user
+			user := api.User{Name: username}
 
 			resp, err := shared.Client().GetUsersName(context.Background(), username)
-			if err != nil || resp.StatusCode != http.StatusOK {
+			if err != nil || (resp.StatusCode != http.StatusOK &&
+				resp.StatusCode != http.StatusNotFound) {
 				shared.Die(err, "get user by name request failed")
 			}
 
 			data, err := api.ParseGetUsersNameResponse(resp)
 			if err != nil {
 				shared.Die(err, "could not parse get user by name response")
+			}
+			if data.JSON200 != nil {
+				user = *data.JSON200
 			}
 
 			// for each flag: if set, apply value to user
@@ -93,9 +98,9 @@ func set() *cobra.Command {
 
 				switch f.Name {
 				case "isAdmin":
-					data.JSON200.IsAdmin = *isAdmin
+					user.IsAdmin = *isAdmin
 				case "canUploadSongs":
-					data.JSON200.CanUploadSongs = *canUploadSongs
+					user.CanUploadSongs = *canUploadSongs
 				case "password":
 					if !*password {
 						break
@@ -106,7 +111,7 @@ func set() *cobra.Command {
 						shared.Die(err, "could not read password")
 					}
 
-					data.JSON200.PublicKey = util.
+					user.PublicKey = util.
 						MakeKey([]byte(username), password).
 						PublicKey.Bytes
 				}
@@ -114,12 +119,12 @@ func set() *cobra.Command {
 
 			// post changed user
 
-			resp, err = shared.Client().PostUsers(context.Background(), *data.JSON200)
+			resp, err = shared.Client().PostUsers(context.Background(), user)
 			if err != nil || resp.StatusCode != http.StatusOK {
 				shared.Die(err, "post user request failed")
 			}
 
-			prettyPrintUser(data.JSON200)
+			prettyPrintUser(&user)
 		},
 	}
 
