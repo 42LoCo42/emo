@@ -157,7 +157,13 @@ func (state *State) NextSong() (string, error) {
 
 	state.WithCurrentDelta(func(delta *api.Stat) {
 		p := state.Percentage
-		if p >= BOOST_SUB_LO && p <= BOOST_SUB_HI {
+		if p < BOOST_SUB_LO {
+			return
+		}
+
+		delta.Time += state.Time
+
+		if p <= BOOST_SUB_HI {
 			delta.Boost--
 		} else if p >= BOOST_ADD_LO {
 			delta.Boost++

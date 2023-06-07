@@ -83,6 +83,7 @@ components:
         - Song
         - Count
         - Boost
+        - Time
       properties:
         ID:
           $ref: '#/components/schemas/StatID'
@@ -100,6 +101,10 @@ components:
           type: integer
           format: int64
           example: 2
+        Time:
+          type: number
+          format: double
+          example: 13.37
 paths:
   /login/{user}:
     get:

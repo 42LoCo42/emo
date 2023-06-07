@@ -38,6 +38,7 @@ func prettyPrintStat(stat *api.Stat) {
 	fmt.Println("Song:  ", stat.Song)
 	fmt.Println("Count: ", stat.Count)
 	fmt.Println("Boost: ", stat.Boost)
+	fmt.Println("Time:  ", stat.Time)
 }
 
 func list() *cobra.Command {
@@ -69,6 +70,7 @@ func set() *cobra.Command {
 		song  *string
 		count *int64
 		boost *int64
+		time  *float64
 	)
 
 	cmd := &cobra.Command{
@@ -114,6 +116,8 @@ func set() *cobra.Command {
 					stat.Count = *count
 				case "boost":
 					stat.Boost = *boost
+				case "time":
+					stat.Time = *time
 				}
 			})
 
@@ -154,6 +158,13 @@ func set() *cobra.Command {
 		"b",
 		0,
 		"The boost of this statistic",
+	)
+
+	time = cmd.Flags().Float64P(
+		"time",
+		"t",
+		0,
+		"The total listening time of the statistic",
 	)
 
 	return cmd

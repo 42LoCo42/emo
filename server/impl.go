@@ -286,6 +286,7 @@ func (s *Server) PostStatsBulkadd(ctx echo.Context) error {
 
 		realStat.Count += stat.Count
 		realStat.Boost += stat.Boost
+		realStat.Time  += stat.Time
 
 		if err := tx.Save(&realStat); err != nil {
 			return shared.Wrap(err, "could not save stat")
