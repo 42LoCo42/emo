@@ -241,12 +241,13 @@ func (state *State) SetPaused(paused bool) {
 }
 
 func (state *State) Move(time float64) {
-	// TODO doesn't work, time is not absolute
-	// if time == 0 && state.Percentage >= BOOST_ADD_LO {
-	// 	state.WithCurrentDelta(func(delta *api.Stat) {
-	// 		delta.Count++
-	// 	})
-	// }
-
 	state.Mpv.Command([]string{"seek", fmt.Sprint(time)})
+}
+
+func (state *State) Rewind() error {
+	if err := state.CompletionLogic(); err != nil {
+		return shared.Wrap(err, "could not run completion logic")
+	}
+
+	return state.Mpv.Command([]string{"seek", "0", "absolute"})
 }

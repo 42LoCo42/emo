@@ -22,6 +22,7 @@ func Cmd(state *state.State) *cobra.Command {
 		toggle(state),
 		seek(state, "forward", 1),
 		seek(state, "backward", -1),
+		rewind(state),
 	)
 
 	return cmd
@@ -111,6 +112,18 @@ func seek(
 			state.Move(time * factor)
 			fmt.Fprintln(cmd.OutOrStdout(), "time:", state.Time)
 			fmt.Fprintln(cmd.OutOrStdout(), "percent:", state.Percentage)
+		},
+	}
+}
+
+func rewind(state *state.State) *cobra.Command {
+	return &cobra.Command{
+		Use:   "rewind",
+		Short: "Rewinds the current song",
+		Run: func(cmd *cobra.Command, args []string) {
+			if err := state.Rewind(); err != nil {
+				fmt.Fprintln(cmd.ErrOrStderr(), shared.Wrap(err, "rewind failed"))
+			}
 		},
 	}
 }
