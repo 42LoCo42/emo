@@ -29,12 +29,14 @@ func errorHandler(err error, c echo.Context) {
 
 func logRequest(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		log.Printf(
-			"%s: %s %s",
-			c.RealIP(),
-			c.Request().Method,
-			c.Request().URL,
-		)
+		if c.Request().Method != "GET" {
+			log.Printf(
+				"%s: %s %s",
+				c.RealIP(),
+				c.Request().Method,
+				c.Request().URL,
+			)
+		}
 		return next(c)
 	}
 }
@@ -71,7 +73,7 @@ func authHandler(s *Server) func(echo.HandlerFunc) echo.HandlerFunc {
 				return c.NoContent(http.StatusForbidden)
 			}
 
-			log.Printf("JWT is valid for %s!", user.Name)
+			// log.Printf("JWT is valid for %s!", user.Name)
 			c.Set("user", user)
 
 			return next(c)
