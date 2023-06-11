@@ -184,6 +184,7 @@ func (state *State) NextSong() (string, error) {
 		name := state.Queue[0]
 		state.Queue = state.Queue[1:]
 
+		state.CurrentStat = nil
 		for _, stat := range state.Stats {
 			if stat.Song == name {
 				state.CurrentStat = &stat
@@ -191,9 +192,11 @@ func (state *State) NextSong() (string, error) {
 			}
 		}
 
-		return "", shared.Wrap(nil, fmt.Sprintf("song %s not found!", name))
+		if state.CurrentStat == nil {
+			return "", shared.Wrap(nil, fmt.Sprintf("song %s not found!", name))
+		}
 	} else {
-		state.CurrentStat = util.RandomStat(&state.Stats) // TODO: add deltas
+		state.CurrentStat = util.RandomStat(&state.Stats, &state.Deltas)
 	}
 
 	// play & return new song

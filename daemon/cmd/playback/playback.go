@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/42LoCo42/emo/daemon/state"
+	"github.com/42LoCo42/emo/daemon/util"
 	"github.com/42LoCo42/emo/shared"
 	"github.com/spf13/cobra"
 )
@@ -23,6 +24,7 @@ func Cmd(state *state.State) *cobra.Command {
 		seek(state, "forward", 1),
 		seek(state, "backward", -1),
 		rewind(state),
+		random10k(state),
 	)
 
 	return cmd
@@ -123,6 +125,21 @@ func rewind(state *state.State) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := state.Rewind(); err != nil {
 				fmt.Fprintln(cmd.ErrOrStderr(), shared.Wrap(err, "rewind failed"))
+			}
+		},
+	}
+}
+
+func random10k(state *state.State) *cobra.Command {
+	return &cobra.Command{
+		Use:   "random10k",
+		Short: "Debug command. Prints 10000 randomly selected songs.",
+		Run: func(cmd *cobra.Command, args []string) {
+			for i := 0; i < 10000; i++ {
+				fmt.Fprintln(
+					cmd.OutOrStdout(),
+					util.RandomStat(&state.Stats, &state.Deltas).Song,
+				)
 			}
 		},
 	}
