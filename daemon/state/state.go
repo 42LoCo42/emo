@@ -22,13 +22,13 @@ const (
 
 type State struct {
 	Client *api.Client
-	Stats  []api.Stat
-	Deltas map[api.StatID]api.Stat
+	Stats  []api.Stat              // readonly, just used as base for random selection
+	Deltas map[api.StatID]api.Stat // these stats are offsets to the base (they can be negative)
 
 	Queue []string
 
 	CurrentFile string
-	CurrentStat *api.Stat
+	CurrentStat *api.Stat // basically the current song
 	Time        float64
 	Percentage  int64
 	Paused      bool
@@ -105,19 +105,31 @@ func NewState() (state *State, err error) {
 }
 
 func (state *State) SyncStats() error {
+	// skip if no deltas
+	// not currently possible, but maybe we add a sync command later
+	if len(state.Deltas) <= 0 {
+		return nil
+	}
+
+	// convert ID map to list
+	// works because every delta also stores its ID
 	values := make([]api.Stat, 0, len(state.Deltas))
 	for _, v := range state.Deltas {
 		values = append(values, v)
 	}
 
+	// do update
 	resp, err := state.Client.PostStatsBulkadd(context.Background(), values)
 	if err != nil || resp.StatusCode != http.StatusOK {
 		return shared.Wrap(err, "stat bulk update failed")
 	}
 
+	// reset deltas
+	state.Deltas = map[uint64]api.Stat{}
 	return nil
 }
 
+// WithCurrentDelta runs a function on the delta of the current song
 func (state *State) WithCurrentDelta(f func(*api.Stat)) {
 	if state.CurrentStat != nil {
 		delta, ok := state.Deltas[state.CurrentStat.ID]
@@ -131,12 +143,41 @@ func (state *State) WithCurrentDelta(f func(*api.Stat)) {
 
 		f(&delta)
 		state.Deltas[state.CurrentStat.ID] = delta
-		log.Printf("%#v", state.Deltas)
 	}
 }
 
+func (state *State) CompletionLogic() error {
+	// update only songs which reached at least BOOST_SUB_LO % of total time
+	p := state.Percentage
+	if p >= BOOST_SUB_LO {
+		state.WithCurrentDelta(func(delta *api.Stat) {
+			delta.Time += state.Time
+
+			if p <= BOOST_SUB_HI {
+				delta.Boost--
+			} else if p >= BOOST_ADD_LO {
+				delta.Boost++
+				delta.Count++
+			}
+		})
+	}
+
+	// in this daemon implementation, SyncStats should never fail
+	// but later we'll maybe build a fully offline daemon
+	// that stores deltas in its own DB
+	// and handles sync failure due to no network connection
+	if err := state.SyncStats(); err != nil {
+		return shared.Wrap(err, "could not sync stats")
+	}
+
+	return nil
+}
+
+// NextSong does delta updates for the current song and returns the next
 func (state *State) NextSong() (string, error) {
-	var newStat api.Stat
+	if err := state.CompletionLogic(); err != nil {
+		return "", shared.Wrap(err, "could not run completion logic")
+	}
 
 	// pop next song from queue if present, else select random
 	if len(state.Queue) > 0 {
@@ -145,33 +186,17 @@ func (state *State) NextSong() (string, error) {
 
 		for _, stat := range state.Stats {
 			if stat.Song == name {
-				newStat = stat
+				state.CurrentStat = &stat
 				break
 			}
 		}
 
 		return "", shared.Wrap(nil, fmt.Sprintf("song %s not found!", name))
 	} else {
-		newStat = util.RandomStat(&state.Stats)
+		state.CurrentStat = util.RandomStat(&state.Stats) // TODO: add deltas
 	}
 
-	state.WithCurrentDelta(func(delta *api.Stat) {
-		p := state.Percentage
-		if p < BOOST_SUB_LO {
-			return
-		}
-
-		delta.Time += state.Time
-
-		if p <= BOOST_SUB_HI {
-			delta.Boost--
-		} else if p >= BOOST_ADD_LO {
-			delta.Boost++
-			delta.Count++
-		}
-	})
-
-	state.CurrentStat = &newStat
+	// play & return new song
 	if err := state.PlaySong(); err != nil {
 		return "", shared.Wrap(err, "could not play song")
 	}
@@ -186,6 +211,7 @@ func (state *State) PlaySong() error {
 		return shared.Wrap(err, "could not create temp song file")
 	}
 
+	// get file from server
 	resp, err := state.Client.GetSongsNameFile(
 		context.Background(),
 		state.CurrentStat.Song,
