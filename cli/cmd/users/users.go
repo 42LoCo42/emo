@@ -37,22 +37,42 @@ func prettyPrintUser(user *api.User) {
 	fmt.Println("Public key:       ", base64.StdEncoding.EncodeToString(user.PublicKey))
 }
 
+func getUsers() []api.User {
+	resp, err := shared.Client().GetUsers(context.Background())
+	if err != nil || resp.StatusCode != http.StatusOK {
+		shared.Die(err, "get users request failed")
+	}
+
+	data, err := api.ParseGetUsersResponse(resp)
+	if err != nil {
+		shared.Die(err, "could not parse get users response")
+	}
+
+	return *data.JSON200
+}
+
+func getUserNames() []string {
+	users := getUsers()
+	names := make([]string, len(users))
+
+	for i, user := range users {
+		names[i] = user.Name
+	}
+
+	return names
+}
+
+func ArgsUserNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return getUserNames(), cobra.ShellCompDirectiveNoFileComp
+}
+
 func list() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "Get a list of all users",
 		Run: func(cmd *cobra.Command, args []string) {
-			resp, err := shared.Client().GetUsers(context.Background())
-			if err != nil || resp.StatusCode != http.StatusOK {
-				shared.Die(err, "get users request failed")
-			}
-
-			data, err := api.ParseGetUsersResponse(resp)
-			if err != nil {
-				shared.Die(err, "could not parse get users response")
-			}
-
-			for _, user := range *data.JSON200 {
+			users := getUsers()
+			for _, user := range users {
 				fmt.Println(user.Name)
 			}
 		},
@@ -67,9 +87,10 @@ func set() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "set username",
-		Short: "Create or set a user",
-		Args:  cobra.ExactArgs(1),
+		Use:               "set username",
+		Short:             "Create or set a user",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: ArgsUserNames,
 		Run: func(cmd *cobra.Command, args []string) {
 			username := args[0]
 
@@ -151,9 +172,10 @@ func set() *cobra.Command {
 
 func get() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get username",
-		Short: "Get a user",
-		Args:  cobra.ExactArgs(1),
+		Use:               "get username",
+		Short:             "Get a user",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: ArgsUserNames,
 		Run: func(cmd *cobra.Command, args []string) {
 			username := args[0]
 
@@ -176,9 +198,10 @@ func get() *cobra.Command {
 
 func del() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete username",
-		Short: "Delete a user",
-		Args:  cobra.ExactArgs(1),
+		Use:               "delete username",
+		Short:             "Delete a user",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: ArgsUserNames,
 		Run: func(cmd *cobra.Command, args []string) {
 			username := args[0]
 

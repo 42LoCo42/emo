@@ -8,6 +8,8 @@ import (
 	"strconv"
 
 	"github.com/42LoCo42/emo/api"
+	"github.com/42LoCo42/emo/cli/cmd/songs"
+	"github.com/42LoCo42/emo/cli/cmd/users"
 	"github.com/42LoCo42/emo/shared"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -41,22 +43,42 @@ func prettyPrintStat(stat *api.Stat) {
 	fmt.Println("Time:  ", stat.Time)
 }
 
+func getStats() []api.Stat {
+	resp, err := shared.Client().GetStats(context.Background())
+	if err != nil || resp.StatusCode != http.StatusOK {
+		shared.Die(err, "get stats request failed")
+	}
+
+	data, err := api.ParseGetStatsResponse(resp)
+	if err != nil {
+		shared.Die(err, "could not parse get stats response")
+	}
+
+	return *data.JSON200
+}
+
+func getStatIDStrings() []string {
+	stats := getStats()
+	ids := make([]string, len(stats))
+
+	for i, stat := range stats {
+		ids[i] = fmt.Sprint(stat.ID)
+	}
+
+	return ids
+}
+
+func ArgsStatIDs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return getStatIDStrings(), cobra.ShellCompDirectiveDefault
+}
+
 func list() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "Get a list of statistics",
 		Run: func(cmd *cobra.Command, args []string) {
-			resp, err := shared.Client().GetStats(context.Background())
-			if err != nil || resp.StatusCode != http.StatusOK {
-				shared.Die(err, "get stats request failed")
-			}
-
-			data, err := api.ParseGetStatsResponse(resp)
-			if err != nil {
-				shared.Die(err, "could not parse get stats response")
-			}
-
-			for _, stat := range *data.JSON200 {
+			stats := getStats()
+			for _, stat := range stats {
 				prettyPrintStat(&stat)
 				fmt.Println()
 			}
@@ -74,9 +96,10 @@ func set() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "set ID",
-		Short: "Create or set a statistic",
-		Args:  cobra.ExactArgs(1),
+		Use:               "set ID",
+		Short:             "Create or set a statistic",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: ArgsStatIDs,
 		Run: func(cmd *cobra.Command, args []string) {
 			id, err := strconv.ParseUint(args[0], 10, 64)
 			if err != nil {
@@ -172,9 +195,10 @@ func set() *cobra.Command {
 
 func get() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get ID",
-		Short: "Get a statistic",
-		Args:  cobra.ExactArgs(1),
+		Use:               "get ID",
+		Short:             "Get a statistic",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: ArgsStatIDs,
 		Run: func(cmd *cobra.Command, args []string) {
 			id, err := strconv.ParseUint(args[0], 10, 64)
 			if err != nil {
@@ -198,9 +222,10 @@ func get() *cobra.Command {
 
 func del() *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete ID",
-		Short: "Delete a statistic",
-		Args:  cobra.ExactArgs(1),
+		Use:               "delete ID",
+		Short:             "Delete a statistic",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: ArgsStatIDs,
 		Run: func(cmd *cobra.Command, args []string) {
 			id, err := strconv.ParseUint(args[0], 10, 64)
 			if err != nil {
@@ -242,9 +267,10 @@ func ofMyself() *cobra.Command {
 
 func ofUser() *cobra.Command {
 	return &cobra.Command{
-		Use:   "ofUser user",
-		Short: "Get the statistics of a user",
-		Args:  cobra.ExactArgs(1),
+		Use:               "ofUser user",
+		Short:             "Get the statistics of a user",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: users.ArgsUserNames,
 		Run: func(cmd *cobra.Command, args []string) {
 			username := args[0]
 
@@ -268,9 +294,10 @@ func ofUser() *cobra.Command {
 
 func ofSong() *cobra.Command {
 	return &cobra.Command{
-		Use:   "ofSong song",
-		Short: "Get the statistics of a song",
-		Args:  cobra.ExactArgs(1),
+		Use:               "ofSong song",
+		Short:             "Get the statistics of a song",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: songs.ArgsSongNames,
 		Run: func(cmd *cobra.Command, args []string) {
 			songname := args[0]
 

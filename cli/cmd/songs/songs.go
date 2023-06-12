@@ -33,23 +33,43 @@ func Cmd() *cobra.Command {
 	return cmd
 }
 
+func getSongs() []api.Song {
+	resp, err := shared.Client().GetSongs(context.Background())
+	if err != nil || resp.StatusCode != http.StatusOK {
+		shared.Die(err, "get songs request failed")
+	}
+
+	data, err := api.ParseGetSongsResponse(resp)
+	if err != nil {
+		shared.Die(err, "could not parse get songs response")
+	}
+
+	return *data.JSON200
+}
+
+func getSongNames() []string {
+	songs := getSongs()
+	names := make([]string, len(songs))
+
+	for i, song := range songs {
+		names[i] = song.Name
+	}
+
+	return names
+}
+
+func ArgsSongNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return getSongNames(), cobra.ShellCompDirectiveDefault
+}
+
 func list() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "Get a list of all songs",
 		Run: func(cmd *cobra.Command, args []string) {
-			resp, err := shared.Client().GetSongs(context.Background())
-			if err != nil || resp.StatusCode != http.StatusOK {
-				shared.Die(err, "get songs request failed")
-			}
-
-			data, err := api.ParseGetSongsResponse(resp)
-			if err != nil {
-				shared.Die(err, "could not parse get songs response")
-			}
-
-			for _, song := range *data.JSON200 {
-				fmt.Println(song.Name)
+			names := getSongNames()
+			for _, name := range names {
+				fmt.Println(name)
 			}
 		},
 	}
@@ -61,9 +81,10 @@ func set() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "set songname",
-		Short: "Create or change a song",
-		Args:  cobra.ExactArgs(1),
+		Use:               "set songname",
+		Short:             "Create or change a song",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: ArgsSongNames,
 		Run: func(cmd *cobra.Command, args []string) {
 			songname := args[0]
 
@@ -157,9 +178,10 @@ func set() *cobra.Command {
 
 func get() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get songname",
-		Short: "Get a song's information",
-		Args:  cobra.ExactArgs(1),
+		Use:               "get songname",
+		Short:             "Get a song's information",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: ArgsSongNames,
 		Run: func(cmd *cobra.Command, args []string) {
 			songname := args[0]
 
@@ -181,9 +203,10 @@ func get() *cobra.Command {
 
 func del() *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete songname",
-		Short: "Delete a song",
-		Args:  cobra.ExactArgs(1),
+		Use:               "delete songname",
+		Short:             "Delete a song",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: ArgsSongNames,
 		Run: func(cmd *cobra.Command, args []string) {
 			songname := args[0]
 
@@ -199,9 +222,10 @@ func del() *cobra.Command {
 
 func file() *cobra.Command {
 	return &cobra.Command{
-		Use:   "file songname",
-		Short: "Get a song file",
-		Args:  cobra.ExactArgs(1),
+		Use:               "file songname",
+		Short:             "Get a song file",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: ArgsSongNames,
 		Run: func(cmd *cobra.Command, args []string) {
 			songname := args[0]
 
