@@ -1,12 +1,11 @@
 package main
 
 import (
-	"crypto/rand"
+	"context"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"io"
-	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -15,9 +14,8 @@ import (
 	"github.com/42LoCo42/emo/api"
 	"github.com/42LoCo42/emo/shared"
 	"github.com/asdine/storm/v3"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/jamesruan/sodium"
-	"github.com/labstack/echo/v4"
 )
 
 type Server struct {
@@ -25,20 +23,28 @@ type Server struct {
 	jwtKey []byte
 }
 
-func (s *Server) getSongByName(name string) (*api.Song, error) {
-	var song api.Song
-	if err := s.db.One("Name", name, &song); err != nil {
-		return nil, shared.Wrap(err, "could not find song")
-	}
+// NewError implements api.Handler
+func (s *Server) NewError(ctx context.Context, err error) *api.ErrorStatusCode {
+	shared.Trace(err)
 
-	return &song, nil
+	code := http.StatusBadRequest
+	msg := err.Error()
+
+	return &api.ErrorStatusCode{
+		StatusCode: code,
+		Response: api.Error{
+			Msg: msg,
+		},
+	}
 }
 
-// GetLoginUser implements api.ServerInterface
-func (s *Server) GetLoginUser(ctx echo.Context, name string) error {
+// LoginUserGet implements api.Handler
+func (s *Server) LoginUserGet(ctx context.Context, params api.LoginUserGetParams) (r api.LoginUserGetOK, err error) {
+	name := params.User
 	var user api.User
-	if err := s.db.One("Name", name, &user); err != nil {
-		return err
+
+	if err := s.db.One("ID", name, &user); err != nil {
+		return r, shared.Wrap(err, "user %v not found", name)
 	}
 
 	pubkey := sodium.BoxPublicKey{
@@ -49,264 +55,197 @@ func (s *Server) GetLoginUser(ctx echo.Context, name string) error {
 		jwt.SigningMethodHS512,
 		jwt.RegisteredClaims{
 			Issuer:   "emo",
-			Subject:  name,
+			Subject:  string(name),
 			IssuedAt: jwt.NewNumericDate(time.Now()),
 		},
 	)
 
 	signed, err := token.SignedString(s.jwtKey)
 	if err != nil {
-		return shared.Wrap(err, "could not sign token")
+		return r, shared.Wrap(err, "could not sign token")
 	}
 
-	return ctx.String(http.StatusOK, base64.StdEncoding.EncodeToString(
+	r.Data = strings.NewReader(base64.StdEncoding.EncodeToString(
 		sodium.Bytes(signed).SealedBox(pubkey),
 	))
+	return r, nil
 }
 
-// DeleteSongsName implements api.ServerInterface
-func (s *Server) DeleteSongsName(ctx echo.Context, name string) error {
-	song, err := s.getSongByName(name)
+// SongsGet implements api.Handler
+func (s *Server) SongsGet(ctx context.Context) ([]api.Song, error) {
+	var songs []api.Song
+	return songs, shared.WrapP(s.db.All(&songs), "could not get songs")
+}
+
+// SongsNameDelete implements api.Handler
+func (s *Server) SongsNameDelete(ctx context.Context, params api.SongsNameDeleteParams) error {
+	song, err := s.SongsNameGet(ctx, api.SongsNameGetParams{
+		Name: params.Name,
+	})
 	if err != nil {
-		return err
+		return shared.Wrap(err, "song not found")
 	}
 
 	if err := s.db.DeleteStruct(song); err != nil {
 		return shared.Wrap(err, "could not delete song from DB")
 	}
 
-	if err := os.Remove(song.ID); err != nil {
+	if err := os.Remove(string(song.ID)); err != nil {
 		return shared.Wrap(err, "could not delete song file")
 	}
 
-	return ctx.NoContent(http.StatusOK)
+	return nil
 }
 
-// DeleteStatsId implements api.ServerInterface
-func (s *Server) DeleteStatsId(ctx echo.Context, id uint64) error {
-	return s.db.DeleteStruct(&api.Stat{ID: id})
-}
-
-// DeleteUsersName implements api.ServerInterface
-func (s *Server) DeleteUsersName(ctx echo.Context, name string) error {
-	return s.db.DeleteStruct(&api.User{Name: name})
-}
-
-// GetSongs implements api.ServerInterface
-func (s *Server) GetSongs(ctx echo.Context) error {
-	var songs []api.Song
-	if err := s.db.All(&songs); err != nil {
-		return err
-	}
-	return ctx.JSON(http.StatusOK, songs)
-}
-
-// GetSongsName implements api.ServerInterface
-func (s *Server) GetSongsName(ctx echo.Context, name string) error {
-	song, err := s.getSongByName(name)
+// SongsNameFileGet implements api.Handler
+func (s *Server) SongsNameFileGet(ctx context.Context, params api.SongsNameFileGetParams) (r api.SongsNameFileGetOK, err error) {
+	song, err := s.SongsNameGet(ctx, api.SongsNameGetParams{
+		Name: params.Name,
+	})
 	if err != nil {
-		return err
+		return r, shared.Wrap(err, "song not found")
 	}
 
-	return ctx.JSON(http.StatusOK, song)
-}
-
-// GetSongsNameFile implements api.ServerInterface
-func (s *Server) GetSongsNameFile(ctx echo.Context, name string) error {
-	song, err := s.getSongByName(name)
+	file, err := os.Open(string(song.ID))
 	if err != nil {
-		return err
+		return r, shared.Wrap(err, "could not open song file")
 	}
 
-	return ctx.File(song.ID)
+	r.Data = file
+	return r, nil
 }
 
-// GetStats implements api.ServerInterface
-func (s *Server) GetStats(ctx echo.Context) error {
-	var stats []api.Stat
-	if err := s.db.All(&stats); err != nil {
-		return err
-	}
-
-	return ctx.JSON(http.StatusOK, stats)
+// SongsNameGet implements api.Handler
+func (s *Server) SongsNameGet(ctx context.Context, params api.SongsNameGetParams) (*api.Song, error) {
+	var song api.Song
+	return &song, shared.WrapP(s.db.One("Name", params.Name, &song), "could not get song")
 }
 
-// GetStatsId implements api.ServerInterface
-func (s *Server) GetStatsId(ctx echo.Context, id uint64) error {
-	var stat api.Stat
-	if err := s.db.One("ID", id, &stat); err != nil {
-		return err
-	}
+// SongsPost implements api.Handler
+func (s *Server) SongsPost(ctx context.Context, req api.OptSongsPostReq) error {
+	song := req.Value.Song
+	file := req.Value.File
 
-	return ctx.JSON(http.StatusOK, stat)
-}
-
-func (s *Server) GetStatsUser(ctx echo.Context) error {
-	var stats []api.Stat
-	if err := s.db.Find("User", ctx.Get("user").(api.User).Name, &stats); err != nil {
-		return err
-	}
-
-	return ctx.JSON(http.StatusOK, stats)
-}
-
-// GetStatsSongSong implements api.ServerInterface
-func (s *Server) GetStatsSongSong(ctx echo.Context, song string) error {
-	var stats []api.Stat
-	if err := s.db.Find("Song", song, &stats); err != nil {
-		return err
-	}
-
-	return ctx.JSON(http.StatusOK, stats)
-}
-
-// GetStatsUserUser implements api.ServerInterface
-func (s *Server) GetStatsUserUser(ctx echo.Context, user string) error {
-	var stats []api.Stat
-	if err := s.db.Find("User", user, &stats); err != nil {
-		return err
-	}
-
-	return ctx.JSON(http.StatusOK, stats)
-}
-
-// GetUsers implements api.ServerInterface
-func (s *Server) GetUsers(ctx echo.Context) error {
-	var users []api.User
-	if err := s.db.All(&users); err != nil {
-		return err
-	}
-	return ctx.JSON(http.StatusOK, users)
-}
-
-// GetUsersName implements api.ServerInterface
-func (s *Server) GetUsersName(ctx echo.Context, name string) error {
-	var user api.User
-	if err := s.db.One("Name", name, &user); err != nil {
-		return err
-	}
-	return ctx.JSON(http.StatusOK, user)
-}
-
-// PostSongs implements api.ServerInterface
-func (s *Server) PostSongs(ctx echo.Context) error {
-	form, err := ctx.MultipartForm()
-	if err != nil {
-		return shared.Wrap(err, "could not get multipart form")
-	}
-
-	infos := form.Value["Info"]
-	if len(infos) != 1 {
-		return ctx.NoContent(http.StatusBadRequest)
-	}
-
-	var info api.Song
-	if err := json.NewDecoder(strings.NewReader(infos[0])).Decode(&info); err != nil {
-		return shared.Wrap(err, "could not decode song info")
-	}
-
-	orig, err := s.getSongByName(info.Name)
-	if err != nil && shared.RCause(err) != storm.ErrNotFound {
-		return shared.Wrap(err, "could not get original song")
-	}
-
-	if orig != nil {
-		info.ID = orig.ID
-	} else {
+	if song.ID == "0" {
 		data := make([]byte, 32)
 		if _, err := rand.Read(data); err != nil {
 			return shared.Wrap(err, "could not generate random ID")
 		}
 
-		info.ID = hex.EncodeToString(data)
+		song.ID = api.SongID(hex.EncodeToString(data))
 	}
 
-	if err := s.db.Save(&info); err != nil {
-		return shared.Wrap(err, "could not save song info")
+	if err := s.db.Save(&song); err != nil {
+		return shared.Wrap(err, "could not save song in DB")
 	}
 
-	files := form.File["File"]
-	if len(files) == 1 {
-		multipartFile, err := files[0].Open()
-		if err != nil {
-			return shared.Wrap(err, "could not open song file")
-		}
-		defer multipartFile.Close()
+	out, err := os.Create(string(song.ID))
+	if err != nil {
+		return shared.Wrap(err, "could not create song file")
+	}
+	defer out.Close()
 
-		file, err := os.Create(info.ID)
-		if err != nil {
-			return shared.Wrap(err, "could not create file")
-		}
-		defer file.Close()
-
-		if _, err := io.Copy(file, multipartFile); err != nil {
-			return shared.Wrap(err, "could not copy multipart body to file")
-		}
+	if _, err := io.Copy(out, file.File); err != nil {
+		return shared.Wrap(err, "could not write to song file")
 	}
 
-	return ctx.NoContent(http.StatusOK)
+	return nil
 }
 
-// PostStats implements api.ServerInterface
-func (s *Server) PostStats(ctx echo.Context) error {
-	var stat api.Stat
-	if err := json.NewDecoder(ctx.Request().Body).Decode(&stat); err != nil {
-		return shared.Wrap(err, "could not decode stat")
-	}
-
-	if err := s.db.Save(&stat); err != nil {
-		return shared.Wrap(err, "could not save stat")
-	}
-
-	return ctx.NoContent(http.StatusOK)
-}
-
-// PostStatsBulkadd implements api.ServerInterface
-func (s *Server) PostStatsBulkadd(ctx echo.Context) error {
+// StatsBulkaddPost implements api.Handler
+func (s *Server) StatsBulkaddPost(ctx context.Context, req []api.Stat) error {
 	tx, err := s.db.Begin(true)
 	if err != nil {
 		return shared.Wrap(err, "could not begin transaction")
 	}
 	defer tx.Rollback()
 
-	var stats []api.Stat
-	if err := json.NewDecoder(ctx.Request().Body).Decode(&stats); err != nil {
-		return shared.Wrap(err, "could not decode stats")
-	}
-
-	for _, stat := range stats {
-		var realStat api.Stat
-		if err := tx.One("ID", stat.ID, &realStat); err != nil {
-			if err == storm.ErrNotFound {
-				log.Printf("Stat with ID %d not found!", stat.ID)
-			} else {
-				return shared.Wrap(err, "could not get stat")
-			}
+	for _, delta := range req {
+		var stat api.Stat
+		if err := tx.One("ID", delta.ID, &stat); err != nil {
+			return shared.Wrap(err, "stat not found")
 		}
 
-		realStat.Count += stat.Count
-		realStat.Boost += stat.Boost
-		realStat.Time  += stat.Time
+		stat.Count.Value += delta.Count.Or(0)
+		stat.Boost.Value += delta.Boost.Or(0)
+		stat.Time.Value += delta.Time.Or(0)
 
-		if err := tx.Save(&realStat); err != nil {
+		if err := tx.Save(&stat); err != nil {
 			return shared.Wrap(err, "could not save stat")
 		}
 	}
 
-	return tx.Commit()
+	return shared.WrapP(tx.Commit(), "could not commit transaction")
 }
 
-// PostUsers implements api.ServerInterface
-func (s *Server) PostUsers(ctx echo.Context) error {
-	var user api.User
-	if err := json.NewDecoder(ctx.Request().Body).Decode(&user); err != nil {
-		return shared.Wrap(err, "could not decode body")
+// StatsGet implements api.Handler
+func (s *Server) StatsGet(ctx context.Context) ([]api.Stat, error) {
+	var stats []api.Stat
+	return stats, shared.WrapP(s.db.All(&stats), "could not get stats")
+}
+
+// StatsIDDelete implements api.Handler
+func (s *Server) StatsIDDelete(ctx context.Context, params api.StatsIDDeleteParams) error {
+	return shared.WrapP(s.db.Delete("Stats", params.ID), "could not delete stat")
+}
+
+// StatsIDGet implements api.Handler
+func (s *Server) StatsIDGet(ctx context.Context, params api.StatsIDGetParams) (*api.Stat, error) {
+	var stat api.Stat
+	return &stat, shared.WrapP(s.db.One("ID", params.ID, &stat), "could not get stat")
+}
+
+// StatsPost implements api.Handler
+func (s *Server) StatsPost(ctx context.Context, req api.OptStat) error {
+	return shared.WrapP(s.db.Save(&req.Value), "could not save stat")
+}
+
+// StatsSongSongGet implements api.Handler
+func (s *Server) StatsSongSongGet(ctx context.Context, params api.StatsSongSongGetParams) ([]api.Stat, error) {
+	var stats []api.Stat
+	return stats, shared.WrapP(s.db.Find("Song", params.Song, &stats), "could not get stats")
+}
+
+// StatsUserGet implements api.Handler
+func (s *Server) StatsUserGet(ctx context.Context) ([]api.Stat, error) {
+	panic("TODO")
+}
+
+// StatsUserUserGet implements api.Handler
+func (s *Server) StatsUserUserGet(ctx context.Context, params api.StatsUserUserGetParams) ([]api.Stat, error) {
+	var stats []api.Stat
+	return stats, shared.WrapP(s.db.Find("User", params.User, &stats), "could not get stats")
+}
+
+// UsersGet implements api.Handler
+func (s *Server) UsersGet(ctx context.Context) ([]api.User, error) {
+	var users []api.User
+	return users, shared.WrapP(s.db.All(&users), "could not get users")
+}
+
+// UsersNameDelete implements api.Handler
+func (s *Server) UsersNameDelete(ctx context.Context, params api.UsersNameDeleteParams) error {
+	song, err := s.UsersNameGet(ctx, api.UsersNameGetParams{
+		Name: params.Name,
+	})
+	if err != nil {
+		return shared.Wrap(err, "user not found")
 	}
 
-	if err := s.db.Save(&user); err != nil {
-		return shared.Wrap(err, "could not save user")
+	if err := s.db.DeleteStruct(song); err != nil {
+		return shared.Wrap(err, "could not delete user from DB")
 	}
 
-	log.Printf("User %s updated", user.Name)
 	return nil
+}
+
+// UsersNameGet implements api.Handler
+func (s *Server) UsersNameGet(ctx context.Context, params api.UsersNameGetParams) (*api.User, error) {
+	var user api.User
+	return &user, shared.WrapP(s.db.One("ID", params.Name, &user), "could not get user")
+}
+
+// UsersPost implements api.Handler
+func (s *Server) UsersPost(ctx context.Context, req api.OptUser) error {
+	return shared.WrapP(s.db.Save(&req.Value), "could not save user")
 }

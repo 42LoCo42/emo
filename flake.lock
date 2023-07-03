@@ -32,34 +32,10 @@
         "type": "indirect"
       }
     },
-    "ref-merge": {
-      "inputs": {
-        "flake-utils": [
-          "flake-utils"
-        ],
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1682505752,
-        "narHash": "sha256-vzJQ/E/fA9r5uG9p0c5z7uKLxKbaI8UyWn5hfKfcjp8=",
-        "owner": "42loco42",
-        "repo": "ref-merge",
-        "rev": "de4667f90a4e4268577bab8893f6a7b5c7ba4f96",
-        "type": "github"
-      },
-      "original": {
-        "owner": "42loco42",
-        "repo": "ref-merge",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs",
-        "ref-merge": "ref-merge"
+        "nixpkgs": "nixpkgs"
       }
     },
     "systems": {

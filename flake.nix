@@ -2,11 +2,8 @@
   description = "easy music organizer";
 
   inputs.flake-utils.url = "github:numtide/flake-utils";
-  inputs.ref-merge.url = "github:42loco42/ref-merge";
-  inputs.ref-merge.inputs.nixpkgs.follows = "nixpkgs";
-  inputs.ref-merge.inputs.flake-utils.follows = "flake-utils";
 
-  outputs = { self, nixpkgs, flake-utils, ref-merge }:
+  outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
@@ -23,8 +20,6 @@
         nativeBuildInputs = with pkgs; [
           oapi-codegen
           pkg-config
-          ref-merge.outputs.defaultPackage.${system}
-          yq
         ];
 
         buildInputs = with pkgs; [

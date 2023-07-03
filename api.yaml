@@ -15,6 +15,20 @@ tags:
   - name: stats
     description: Listening statistics, connecting users and songs
 components:
+  responses:
+    error:
+      description: "General error"
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - msg
+            properties:
+              msg:
+                type: string
+                example: "This is an example error!"
+
   schemas:
     UserName:
       type: string
@@ -22,15 +36,13 @@ components:
     User:
       type: object
       required:
-        - Name
+        - ID
         - IsAdmin
         - CanUploadSongs
         - PublicKey
       properties:
-        Name:
+        ID:
           $ref: '#/components/schemas/UserName'
-          x-oapi-codegen-extra-tags:
-            storm: id
         IsAdmin:
           type: boolean
           example: true
@@ -44,9 +56,8 @@ components:
             Is this user allowed to upload new songs?
         PublicKey:
           type: string
-          format: binary
+          format: byte
           description: The public key of this user
-          x-go-type: "[]byte"
 
     SongID:
       type: string
@@ -62,14 +73,11 @@ components:
       properties:
         ID:
           $ref: '#/components/schemas/SongID'
-          x-oapi-codegen-extra-tags:
-            storm: id
         Name:
           $ref: '#/components/schemas/SongName'
     SongFile:
       type: string
       format: binary
-      x-go-type: "[]byte"
 
     StatID:
       type: integer
@@ -78,12 +86,8 @@ components:
     Stat:
       type: object
       required:
-        - ID
         - User
         - Song
-        - Count
-        - Boost
-        - Time
       properties:
         ID:
           $ref: '#/components/schemas/StatID'
@@ -105,6 +109,7 @@ components:
           type: number
           format: double
           example: 13.37
+
 paths:
   /login/{user}:
     get:
@@ -125,6 +130,9 @@ paths:
             text/plain:
               schema:
                 type: string
+        default:
+          $ref: '#/components/responses/error'
+
   /users:
     get:
       description: Get all users
@@ -139,6 +147,9 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/User'
+        default:
+          $ref: '#/components/responses/error'
+
     post:
       description: Create or update user
       tags:
@@ -151,6 +162,9 @@ paths:
       responses:
         '200':
           description: Update successfully applied
+        default:
+          $ref: '#/components/responses/error'
+
   /users/{name}:
     get:
       description: Get a user by name
@@ -170,8 +184,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
-        '404':
-          description: User not found
+        default:
+          $ref: '#/components/responses/error'
+
     delete:
       description: Delete a user
       tags:
@@ -186,8 +201,9 @@ paths:
       responses:
         '200':
           description: User was deleted successfully
-        '404':
-          description: User not found
+        default:
+          $ref: '#/components/responses/error'
+
   /songs:
     get:
       description: Get all songs
@@ -202,6 +218,9 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Song'
+        default:
+          $ref: '#/components/responses/error'
+
     post:
       description: Create or update a song
       tags:
@@ -211,14 +230,21 @@ paths:
           multipart/form-data:
             schema:
               type: object
+              required:
+                - Song
+                - File
               properties:
                 Song:
                   $ref: '#/components/schemas/Song'
                 File:
-                  $ref: '#/components/schemas/SongFile'
+                  type: string
+                  format: binary
       responses:
         '200':
           description: Update successfully applied
+        default:
+          $ref: '#/components/responses/error'
+
   /songs/{name}:
     get:
       description: Get a song by name
@@ -238,8 +264,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Song'
-        '404':
-          description: Song not found
+        default:
+          $ref: '#/components/responses/error'
+
     delete:
       description: Delete a song
       tags:
@@ -254,8 +281,9 @@ paths:
       responses:
         '200':
           description: Song was deleted successfully
-        '404':
-          description: Song not found
+        default:
+          $ref: '#/components/responses/error'
+
   /songs/{name}/file:
     get:
       description: Get the contents of the song file
@@ -275,8 +303,9 @@ paths:
             application/octet-stream:
               schema:
                 $ref: '#/components/schemas/SongFile'
-        '400':
-          description: Song not found
+        default:
+          $ref: '#/components/responses/error'
+
   /stats:
     get:
       description: Get all stats
@@ -291,6 +320,9 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Stat'
+        default:
+          $ref: '#/components/responses/error'
+
     post:
       description: Create or update stat
       tags:
@@ -303,6 +335,9 @@ paths:
       responses:
         '200':
           description: Update successfully applied
+        default:
+          $ref: '#/components/responses/error'
+
   /stats/bulkadd:
     post:
       description: Add a list of stats to the current ones
@@ -318,6 +353,9 @@ paths:
       responses:
         '200':
           description: Update successfully applied
+        default:
+          $ref: '#/components/responses/error'
+
   /stats/{id}:
     get:
       description: Get a stat
@@ -337,8 +375,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Stat'
-        '404':
-          description: Stat not found
+        default:
+          $ref: '#/components/responses/error'
+
     delete:
       description: Delete a stat
       tags:
@@ -353,8 +392,9 @@ paths:
       responses:
         '200':
           description: Stat deleted successfully
-        '404':
-          description: Stat not found
+        default:
+          $ref: '#/components/responses/error'
+
   /stats/user:
     get:
       description: Get stats of current user
@@ -369,6 +409,9 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Stat'
+        default:
+          $ref: '#/components/responses/error'
+
   /stats/user/{user}:
     get:
       description: Filter stats by user
@@ -390,8 +433,9 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Stat'
-        '404':
-          description: User not found
+        default:
+          $ref: '#/components/responses/error'
+
   /stats/song/{song}:
     get:
       description: Filter stats by song
@@ -413,5 +457,5 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Stat'
-        '404':
-          description: Song not found
+        default:
+          $ref: '#/components/responses/error'

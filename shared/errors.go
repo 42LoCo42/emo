@@ -18,12 +18,12 @@ type Causer interface {
 
 func Die(err error, msg string) {
 	err = Wrap(err, msg)
-	log.Print(err)
 	Trace(err)
 	os.Exit(1)
 }
 
 func Trace(err error) {
+	log.Print(err)
 	if trace, ok := err.(StackTracer); ok {
 		for _, frame := range trace.StackTrace() {
 			fmt.Fprintf(os.Stderr, "%+v\n", frame)
@@ -31,11 +31,15 @@ func Trace(err error) {
 	}
 }
 
-func Wrap(err error, message string) error {
+func WrapP(err error, message string, args ...any) error {
+	return errors.Wrap(err, fmt.Sprintf(message, args...))
+}
+
+func Wrap(err error, message string, args ...any) error {
 	if err == nil {
-		return errors.New(message)
+		return fmt.Errorf(message, args...)
 	} else {
-		return errors.Wrap(err, message)
+		return WrapP(err, message, args...)
 	}
 }
 
