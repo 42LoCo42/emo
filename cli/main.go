@@ -9,6 +9,7 @@ import (
 	"github.com/42LoCo42/emo/cli/cmd/login"
 	"github.com/42LoCo42/emo/cli/cmd/songs"
 	"github.com/42LoCo42/emo/cli/cmd/stats"
+	"github.com/42LoCo42/emo/cli/cmd/tools"
 	"github.com/42LoCo42/emo/cli/cmd/users"
 	"github.com/42LoCo42/emo/shared"
 	"github.com/spf13/cobra"
@@ -35,6 +36,7 @@ func main() {
 		login.Login,
 		songs.Cmd(),
 		stats.Cmd(),
+		tools.Cmd(),
 		users.Cmd(),
 	)
 

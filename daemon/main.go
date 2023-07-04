@@ -62,9 +62,6 @@ func handleClient(client net.Conn, state *state.State) {
 		playback.Cmd(state),
 	)
 
-	cmd.SetOut(client)
-	cmd.SetErr(client)
-
 	var mode [1]byte
 	if _, err := client.Read(mode[:]); err != nil {
 		log.Print("Could not read client mode: ", err)
@@ -72,25 +69,49 @@ func handleClient(client net.Conn, state *state.State) {
 	}
 
 	if mode[0] == 'j' {
-		// json & single command only
-		var args []string
-		if err := json.NewDecoder(client).Decode(&args); err != nil {
-			log.Print("Could not decode JSON command: ", err)
-			return
-		}
+		// json mode
+		decoder := json.NewDecoder(client)
+		encoder := json.NewEncoder(client)
 
-		cmd.SetArgs(args)
-		if err := cmd.Execute(); err != nil {
-			fmt.Fprintln(client, "Command error: ", err)
-		}
+		outBuf := &strings.Builder{}
+		errBuf := &strings.Builder{}
+		cmd.SetOut(outBuf)
+		cmd.SetErr(errBuf)
 
-		client.Close()
+		for {
+			var args []string
+			if err := decoder.Decode(&args); err != nil {
+				log.Print("Could not decode JSON command: ", err)
+				return
+			}
+
+			log.Print("running command: ", args)
+			cmd.SetArgs(args)
+			if err := cmd.Execute(); err != nil {
+				log.Print("JSON command error: ", err)
+				return
+			}
+
+			if err := encoder.Encode([]string{
+				outBuf.String(),
+				errBuf.String(),
+			}); err != nil {
+				log.Print("could not encode JSON command response: ", err)
+				return
+			}
+
+			outBuf.Reset()
+			errBuf.Reset()
+		}
 	} else {
 		// shell mode
 		fmt.Fprintln(
 			client,
 			"Connected to emo daemon! Run help for a command list",
 		)
+
+		cmd.SetOut(client)
+		cmd.SetErr(client)
 
 		scn := bufio.NewReader(client)
 
