@@ -7,7 +7,6 @@ import (
 
 	"github.com/42LoCo42/emo/cli/cmd/daemon"
 	"github.com/42LoCo42/emo/cli/cmd/login"
-	"github.com/42LoCo42/emo/cli/cmd/script"
 	"github.com/42LoCo42/emo/cli/cmd/songs"
 	"github.com/42LoCo42/emo/cli/cmd/stats"
 	"github.com/42LoCo42/emo/cli/cmd/users"
@@ -31,12 +30,9 @@ func main() {
 		log.Fatal(shared.Wrap(err, "could not init API client"))
 	}
 
-	shared.TengoSetup()
-
 	rootCmd.AddCommand(
 		daemon.Cmd(),
 		login.Login,
-		script.Cmd(),
 		songs.Cmd(),
 		stats.Cmd(),
 		users.Cmd(),
