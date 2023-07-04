@@ -10,6 +10,7 @@ func Cmd() *cobra.Command {
 
 	cmd.AddCommand(
 		dashboard(),
+		finetune(),
 	)
 
 	return cmd
