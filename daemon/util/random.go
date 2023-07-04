@@ -6,7 +6,7 @@ import (
 	"github.com/42LoCo42/emo/api"
 )
 
-func RandomStat(stats *[]api.Stat, deltas *map[uint64]api.Stat) *api.Stat {
+func RandomStat(stats *[]api.Stat, deltas *map[api.StatID]api.Stat) *api.Stat {
 	var sum int64
 	for _, stat := range *stats {
 		sum += stat.Count + stat.Boost

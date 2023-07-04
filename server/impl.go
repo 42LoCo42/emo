@@ -224,7 +224,10 @@ func (s *Server) StatsSongSongGet(ctx context.Context, params api.StatsSongSongG
 
 // StatsUserGet implements api.Handler
 func (s *Server) StatsUserGet(ctx context.Context) ([]api.Stat, error) {
-	panic("TODO")
+	user := ctx.Value("user").(api.User)
+	return s.StatsUserUserGet(ctx, api.StatsUserUserGetParams{
+		User: user.ID,
+	})
 }
 
 // StatsUserUserGet implements api.Handler

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/http"
 	"os"
 
 	"github.com/42LoCo42/emo/api"
@@ -47,19 +46,11 @@ func NewState() (state *State, err error) {
 	}
 
 	// get stats from server
-	resp, err := state.Client.GetStatsUser(context.Background())
-	if err != nil || resp.StatusCode != http.StatusOK {
+	res, err := state.Client.StatsUserGet(context.Background())
+	if err != nil {
 		return nil, shared.Wrap(err, "get stats for user request failed")
 	}
-
-	// decode response
-	data, err := api.ParseGetStatsUserUserResponse(resp)
-	if err != nil {
-		return nil, shared.Wrap(err, "could not parse get stats for user response")
-	}
-
-	// assign stats
-	state.Stats = *data.JSON200
+	state.Stats = res
 
 	// create empty deltas - we just need the ID for association
 	state.Deltas = map[api.StatID]api.Stat{}
@@ -119,13 +110,12 @@ func (state *State) SyncStats() error {
 	}
 
 	// do update
-	resp, err := state.Client.PostStatsBulkadd(context.Background(), values)
-	if err != nil || resp.StatusCode != http.StatusOK {
+	if err := state.Client.StatsBulkaddPost(context.Background(), values); err != nil {
 		return shared.Wrap(err, "stat bulk update failed")
 	}
 
 	// reset deltas
-	state.Deltas = map[uint64]api.Stat{}
+	state.Deltas = map[api.StatID]api.Stat{}
 	return nil
 }
 
@@ -186,7 +176,7 @@ func (state *State) NextSong() (string, error) {
 
 		state.CurrentStat = nil
 		for _, stat := range state.Stats {
-			if stat.Song == name {
+			if stat.Song == api.SongName(name) {
 				state.CurrentStat = &stat
 				break
 			}
@@ -204,7 +194,7 @@ func (state *State) NextSong() (string, error) {
 		return "", shared.Wrap(err, "could not play song")
 	}
 
-	return state.CurrentStat.Song, nil
+	return string(state.CurrentStat.Song), nil
 }
 
 func (state *State) PlaySong() error {
@@ -215,14 +205,13 @@ func (state *State) PlaySong() error {
 	}
 
 	// get file from server
-	resp, err := state.Client.GetSongsNameFile(
-		context.Background(),
-		state.CurrentStat.Song,
-	)
+	res, err := state.Client.SongsNameFileGet(context.Background(), api.SongsNameFileGetParams{
+		Name: state.CurrentStat.Song,
+	})
 	if err != nil {
 		return shared.Wrap(err, "could not download song")
 	}
-	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
+	if _, err := io.Copy(tmpFile, res.Data); err != nil {
 		return shared.Wrap(err, "could not save song")
 	}
 
