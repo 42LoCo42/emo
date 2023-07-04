@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"strings"
 
@@ -47,12 +48,12 @@ func authHandler(s *Server) func(req middleware.Request, next middleware.Next) (
 		}
 
 		var user api.User
-		if err := s.db.One("Name", claims.Subject, &user); err != nil {
+		if err := s.db.One("ID", api.UserName(claims.Subject), &user); err != nil {
 			return r, shared.Wrap(err, "could not find user")
 		}
 
 		// log.Printf("JWT is valid for %s!", user.Name)
-		*req.Context.Value("user").(*api.User) = user
+		req.Context = context.WithValue(req.Context, "user", user)
 		return next(req)
 	}
 }

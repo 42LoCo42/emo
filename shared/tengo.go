@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"reflect"
 
@@ -38,7 +37,7 @@ func TengoSetup() {
 
 	for i := 0; i < typ.NumMethod(); i++ {
 		met := typ.Method(i)
-		log.Print(met.Name)
+		// log.Print(met.Name)
 
 		tengoApiFunctions[met.Name] = &tengo.UserFunction{
 			Value: func(args ...tengo.Object) (ret tengo.Object, err error) {

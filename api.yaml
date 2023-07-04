@@ -86,8 +86,12 @@ components:
     Stat:
       type: object
       required:
+        - ID
         - User
         - Song
+        - Count
+        - Boost
+        - Time
       properties:
         ID:
           $ref: '#/components/schemas/StatID'
@@ -335,6 +339,10 @@ paths:
       responses:
         '200':
           description: Update successfully applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stat'
         default:
           $ref: '#/components/responses/error'
 

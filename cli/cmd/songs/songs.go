@@ -2,16 +2,14 @@ package songs
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"mime/multipart"
-	"net/http"
 	"os"
 
 	"github.com/42LoCo42/emo/api"
 	"github.com/42LoCo42/emo/shared"
+	ht "github.com/ogen-go/ogen/http"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -34,17 +32,12 @@ func Cmd() *cobra.Command {
 }
 
 func getSongs() []api.Song {
-	resp, err := shared.Client().GetSongs(context.Background())
-	if err != nil || resp.StatusCode != http.StatusOK {
+	res, err := shared.Client().SongsGet(context.Background())
+	if err != nil {
 		shared.Die(err, "get songs request failed")
 	}
 
-	data, err := api.ParseGetSongsResponse(resp)
-	if err != nil {
-		shared.Die(err, "could not parse get songs response")
-	}
-
-	return *data.JSON200
+	return res
 }
 
 func getSongNames() []string {
@@ -52,7 +45,7 @@ func getSongNames() []string {
 	names := make([]string, len(songs))
 
 	for i, song := range songs {
-		names[i] = song.Name
+		names[i] = string(song.Name)
 	}
 
 	return names
@@ -89,52 +82,21 @@ func set() *cobra.Command {
 			songname := args[0]
 
 			// get song info
-			song := api.Song{Name: songname}
-
-			resp, err := shared.Client().GetSongsName(context.Background(), songname)
-			if err != nil || (resp.StatusCode != http.StatusOK &&
-				resp.StatusCode != http.StatusNotFound) {
-				shared.Die(err, "get song requesst failed")
-			}
-
-			data, err := api.ParseGetSongsNameResponse(resp)
+			song, err := shared.Client().SongsNameGet(context.Background(), api.SongsNameGetParams{
+				Name: api.SongName(songname),
+			})
 			if err != nil {
-				shared.Die(err, "parse get song request failed")
-			}
-
-			if data.JSON200 != nil {
-				song = *data.JSON200
-			}
-
-			done := make(chan int) // channel for waiting
-			pR, pW := io.Pipe()    // pipe for data exchange
-			body := multipart.NewWriter(pW)
-
-			// sender goroutine
-			go func() {
-				// upload song
-				resp, err = shared.Client().PostSongsWithBody(
-					context.Background(),
-					"multipart/form-data; boundary = "+body.Boundary(),
-					pR,
-				)
-				if err != nil || resp.StatusCode != http.StatusOK {
-					shared.Die(err, "post song request failed")
+				if shared.Is404(err) {
+					song = &api.Song{
+						Name: api.SongName(songname),
+					}
+				} else {
+					shared.Die(err, "get song request failed")
 				}
-
-				done <- 0 // signal done
-			}()
-
-			// write info to multipart body
-			infoWriter, err := body.CreateFormField("Info")
-			if err != nil {
-				shared.Die(err, "could not create info field")
-			}
-			if err := json.NewEncoder(infoWriter).Encode(song); err != nil {
-				shared.Die(err, "could not write to info field")
 			}
 
-			// handle flags
+			var songFile ht.MultipartFile
+
 			cmd.Flags().Visit(func(f *pflag.Flag) {
 				if !f.Changed {
 					return
@@ -142,27 +104,24 @@ func set() *cobra.Command {
 
 				switch f.Name {
 				case "file":
-					fileWriter, err := body.CreateFormFile("File", *file)
-					if err != nil {
-						shared.Die(err, "could not create file field")
-					}
-
-					file, err := os.Open(*file)
+					realFile, err := os.Open(*file)
 					if err != nil {
 						shared.Die(err, "could not open song file")
 					}
 
-					// write song to multipart body
-					if _, err := io.Copy(fileWriter, file); err != nil {
-						shared.Die(err, "could not write to file field")
+					songFile = ht.MultipartFile{
+						Name: *file,
+						File: realFile,
 					}
 				}
 			})
 
-			body.Close() // no more data in body
-			pW.Close()   // request finished
-			<-done       // wait for sender to quit
-			log.Print("Done!")
+			if err := shared.Client().SongsPost(context.Background(), api.NewOptSongsPostReq(api.SongsPostReq{
+				Song: *song,
+				File: songFile,
+			})); err != nil {
+				shared.Die(err, "post song request failed")
+			}
 		},
 	}
 
@@ -185,18 +144,15 @@ func get() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			songname := args[0]
 
-			resp, err := shared.Client().GetSongsName(context.Background(), songname)
-			if err != nil || resp.StatusCode != http.StatusOK {
+			res, err := shared.Client().SongsNameGet(context.Background(), api.SongsNameGetParams{
+				Name: api.SongName(songname),
+			})
+			if err != nil {
 				shared.Die(err, "get song request failed")
 			}
 
-			data, err := api.ParseGetSongsNameResponse(resp)
-			if err != nil {
-				shared.Die(err, "could not parse get song response")
-			}
-
-			fmt.Println("Song name: ", data.JSON200.Name)
-			fmt.Println("Song path:", data.JSON200.ID)
+			fmt.Println("Song name: ", res.Name)
+			fmt.Println("Song path: ", res.ID)
 		},
 	}
 }
@@ -210,8 +166,9 @@ func del() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			songname := args[0]
 
-			resp, err := shared.Client().DeleteSongsName(context.Background(), songname)
-			if err != nil || resp.StatusCode != http.StatusOK {
+			if err := shared.Client().SongsNameDelete(context.Background(), api.SongsNameDeleteParams{
+				Name: api.SongName(songname),
+			}); err != nil {
 				shared.Die(err, "delete song request failed")
 			}
 
@@ -229,12 +186,14 @@ func file() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			songname := args[0]
 
-			resp, err := shared.Client().GetSongsNameFile(context.Background(), songname)
-			if err != nil || resp.StatusCode != http.StatusOK {
+			res, err := shared.Client().SongsNameFileGet(context.Background(), api.SongsNameFileGetParams{
+				Name: api.SongName(songname),
+			})
+			if err != nil {
 				shared.Die(err, "get song file request failed")
 			}
 
-			if _, err := io.Copy(os.Stdout, resp.Body); err != nil {
+			if _, err := io.Copy(os.Stdout, res.Data); err != nil {
 				shared.Die(err, "could not copy file to stdout")
 			}
 		},

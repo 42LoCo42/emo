@@ -3,8 +3,10 @@ package shared
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
+	"github.com/42LoCo42/emo/api"
 	"github.com/pkg/errors"
 )
 
@@ -14,6 +16,10 @@ type StackTracer interface {
 
 type Causer interface {
 	Cause() error
+}
+
+type Unwrap interface {
+	Unwrap() error
 }
 
 func Die(err error, msg string) {
@@ -52,4 +58,29 @@ func RCause(err error) error {
 
 		err = causer.Cause()
 	}
+}
+
+func RUnwrap(err error) error {
+	for {
+		unwrapped, ok := err.(Unwrap)
+		if !ok {
+			return err
+		}
+
+		err = unwrapped.Unwrap()
+	}
+}
+
+func ErrorStatus(err error) int {
+	err = RUnwrap(err)
+	real, ok := err.(*api.ErrorStatusCode)
+	if !ok {
+		return 0
+	}
+
+	return real.StatusCode
+}
+
+func Is404(err error) bool {
+	return ErrorStatus(err) == http.StatusNotFound
 }

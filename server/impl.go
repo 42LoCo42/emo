@@ -30,6 +30,11 @@ func (s *Server) NewError(ctx context.Context, err error) *api.ErrorStatusCode {
 	code := http.StatusBadRequest
 	msg := err.Error()
 
+	cause := shared.RCause(err)
+	if cause == storm.ErrNotFound {
+		code = http.StatusNotFound
+	}
+
 	return &api.ErrorStatusCode{
 		StatusCode: code,
 		Response: api.Error{
@@ -126,7 +131,7 @@ func (s *Server) SongsPost(ctx context.Context, req api.OptSongsPostReq) error {
 	song := req.Value.Song
 	file := req.Value.File
 
-	if song.ID == "0" {
+	if song.ID == "" {
 		data := make([]byte, 32)
 		if _, err := rand.Read(data); err != nil {
 			return shared.Wrap(err, "could not generate random ID")
@@ -166,9 +171,9 @@ func (s *Server) StatsBulkaddPost(ctx context.Context, req []api.Stat) error {
 			return shared.Wrap(err, "stat not found")
 		}
 
-		stat.Count.Value += delta.Count.Or(0)
-		stat.Boost.Value += delta.Boost.Or(0)
-		stat.Time.Value += delta.Time.Or(0)
+		stat.Count += delta.Count
+		stat.Boost += delta.Boost
+		stat.Time += delta.Time
 
 		if err := tx.Save(&stat); err != nil {
 			return shared.Wrap(err, "could not save stat")
@@ -186,7 +191,18 @@ func (s *Server) StatsGet(ctx context.Context) ([]api.Stat, error) {
 
 // StatsIDDelete implements api.Handler
 func (s *Server) StatsIDDelete(ctx context.Context, params api.StatsIDDeleteParams) error {
-	return shared.WrapP(s.db.Delete("Stats", params.ID), "could not delete stat")
+	stat, err := s.StatsIDGet(ctx, api.StatsIDGetParams{
+		ID: params.ID,
+	})
+	if err != nil {
+		return shared.Wrap(err, "stat not found")
+	}
+
+	if err := s.db.DeleteStruct(stat); err != nil {
+		return shared.Wrap(err, "could not delete stat from DB")
+	}
+
+	return nil
 }
 
 // StatsIDGet implements api.Handler
@@ -196,8 +212,8 @@ func (s *Server) StatsIDGet(ctx context.Context, params api.StatsIDGetParams) (*
 }
 
 // StatsPost implements api.Handler
-func (s *Server) StatsPost(ctx context.Context, req api.OptStat) error {
-	return shared.WrapP(s.db.Save(&req.Value), "could not save stat")
+func (s *Server) StatsPost(ctx context.Context, req api.OptStat) (*api.Stat, error) {
+	return &req.Value, shared.WrapP(s.db.Save(&req.Value), "could not save stat")
 }
 
 // StatsSongSongGet implements api.Handler

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"strconv"
 
 	"github.com/42LoCo42/emo/api"
@@ -44,17 +43,12 @@ func prettyPrintStat(stat *api.Stat) {
 }
 
 func getStats() []api.Stat {
-	resp, err := shared.Client().GetStats(context.Background())
-	if err != nil || resp.StatusCode != http.StatusOK {
+	res, err := shared.Client().StatsGet(context.Background())
+	if err != nil {
 		shared.Die(err, "get stats request failed")
 	}
 
-	data, err := api.ParseGetStatsResponse(resp)
-	if err != nil {
-		shared.Die(err, "could not parse get stats response")
-	}
-
-	return *data.JSON200
+	return res
 }
 
 func getStatIDStrings() []string {
@@ -107,21 +101,17 @@ func set() *cobra.Command {
 			}
 
 			// get stat
-			stat := api.Stat{ID: id}
-
-			resp, err := shared.Client().GetStatsId(context.Background(), id)
-			if err != nil || (resp.StatusCode != http.StatusOK &&
-				resp.StatusCode != http.StatusNotFound) {
-				shared.Die(err, "get stat request failed")
-			}
-
-			data, err := api.ParseGetStatsIdResponse(resp)
+			stat, err := shared.Client().StatsIDGet(context.Background(), api.StatsIDGetParams{
+				ID: api.StatID(id),
+			})
 			if err != nil {
-				shared.Die(err, "could not parse get stat response")
-			}
-
-			if data.JSON200 != nil {
-				stat = *data.JSON200
+				if shared.Is404(err) {
+					stat = &api.Stat{
+						ID: api.StatID(id),
+					}
+				} else {
+					shared.Die(err, "get stat request failed")
+				}
 			}
 
 			// handle flags
@@ -132,9 +122,9 @@ func set() *cobra.Command {
 
 				switch f.Name {
 				case "user":
-					stat.User = *user
+					stat.User = api.UserName(*user)
 				case "song":
-					stat.Song = *song
+					stat.Song = api.SongName(*song)
 				case "count":
 					stat.Count = *count
 				case "boost":
@@ -145,12 +135,12 @@ func set() *cobra.Command {
 			})
 
 			// upload new stat
-			resp, err = shared.Client().PostStats(context.Background(), stat)
-			if err != nil || resp.StatusCode != http.StatusOK {
+			stat, err = shared.Client().StatsPost(context.Background(), api.NewOptStat(*stat))
+			if err != nil {
 				shared.Die(err, "post stat request failed")
 			}
 
-			prettyPrintStat(&stat)
+			prettyPrintStat(stat)
 			log.Print("Done!")
 		},
 	}
@@ -205,17 +195,14 @@ func get() *cobra.Command {
 				shared.Die(err, "could not parse ID")
 			}
 
-			resp, err := shared.Client().GetStatsId(context.Background(), id)
-			if err != nil || resp.StatusCode != http.StatusOK {
+			res, err := shared.Client().StatsIDGet(context.Background(), api.StatsIDGetParams{
+				ID: api.StatID(id),
+			})
+			if err != nil {
 				shared.Die(err, "get stat request failed")
 			}
 
-			data, err := api.ParseGetStatsIdResponse(resp)
-			if err != nil {
-				shared.Die(err, "could not parse get stat response")
-			}
-
-			prettyPrintStat(data.JSON200)
+			prettyPrintStat(res)
 		},
 	}
 }
@@ -232,8 +219,9 @@ func del() *cobra.Command {
 				shared.Die(err, "could not parse ID")
 			}
 
-			resp, err := shared.Client().DeleteStatsId(context.Background(), id)
-			if err != nil || resp.StatusCode != http.StatusOK {
+			if err := shared.Client().StatsIDDelete(context.Background(), api.StatsIDDeleteParams{
+				ID: api.StatID(id),
+			}); err != nil {
 				shared.Die(err, "get stat request failed")
 			}
 
@@ -247,17 +235,12 @@ func ofMyself() *cobra.Command {
 		Use:   "ofMyself",
 		Short: "Get the statistics of the currently logged in user",
 		Run: func(cmd *cobra.Command, args []string) {
-			resp, err := shared.Client().GetStatsUser(context.Background())
-			if err != nil || resp.StatusCode != http.StatusOK {
+			res, err := shared.Client().StatsUserGet(context.Background())
+			if err != nil {
 				shared.Die(err, "get stats of user request failed")
 			}
 
-			data, err := api.ParseGetStatsUserUserResponse(resp)
-			if err != nil {
-				shared.Die(err, "could not parse stats of user response")
-			}
-
-			for _, stat := range *data.JSON200 {
+			for _, stat := range res {
 				prettyPrintStat(&stat)
 				fmt.Println()
 			}
@@ -274,17 +257,14 @@ func ofUser() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			username := args[0]
 
-			resp, err := shared.Client().GetStatsUserUser(context.Background(), username)
-			if err != nil || resp.StatusCode != http.StatusOK {
+			res, err := shared.Client().StatsUserUserGet(context.Background(), api.StatsUserUserGetParams{
+				User: api.UserName(username),
+			})
+			if err != nil {
 				shared.Die(err, "get stats of user request failed")
 			}
 
-			data, err := api.ParseGetStatsUserUserResponse(resp)
-			if err != nil {
-				shared.Die(err, "could not parse stats of user response")
-			}
-
-			for _, stat := range *data.JSON200 {
+			for _, stat := range res {
 				prettyPrintStat(&stat)
 				fmt.Println()
 			}
@@ -301,17 +281,14 @@ func ofSong() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			songname := args[0]
 
-			resp, err := shared.Client().GetStatsSongSong(context.Background(), songname)
-			if err != nil || resp.StatusCode != http.StatusOK {
+			res, err := shared.Client().StatsSongSongGet(context.Background(), api.StatsSongSongGetParams{
+				Song: api.SongName(songname),
+			})
+			if err != nil {
 				shared.Die(err, "get stats of song request failed")
 			}
 
-			data, err := api.ParseGetStatsSongSongResponse(resp)
-			if err != nil {
-				shared.Die(err, "could not parse stats of song response")
-			}
-
-			for _, stat := range *data.JSON200 {
+			for _, stat := range res {
 				prettyPrintStat(&stat)
 				fmt.Println()
 			}

@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
-	"net/http"
 
 	"github.com/42LoCo42/emo/api"
 	"github.com/42LoCo42/emo/cli/util"
@@ -31,24 +30,19 @@ func Cmd() *cobra.Command {
 }
 
 func prettyPrintUser(user *api.User) {
-	fmt.Println("Username:         ", user.Name)
+	fmt.Println("Username:         ", user.ID)
 	fmt.Println("Is admin:         ", user.IsAdmin)
 	fmt.Println("Can upload songs: ", user.CanUploadSongs)
 	fmt.Println("Public key:       ", base64.StdEncoding.EncodeToString(user.PublicKey))
 }
 
 func getUsers() []api.User {
-	resp, err := shared.Client().GetUsers(context.Background())
-	if err != nil || resp.StatusCode != http.StatusOK {
+	res, err := shared.Client().UsersGet(context.Background())
+	if err != nil {
 		shared.Die(err, "get users request failed")
 	}
 
-	data, err := api.ParseGetUsersResponse(resp)
-	if err != nil {
-		shared.Die(err, "could not parse get users response")
-	}
-
-	return *data.JSON200
+	return res
 }
 
 func getUserNames() []string {
@@ -56,7 +50,7 @@ func getUserNames() []string {
 	names := make([]string, len(users))
 
 	for i, user := range users {
-		names[i] = user.Name
+		names[i] = string(user.ID)
 	}
 
 	return names
@@ -71,9 +65,9 @@ func list() *cobra.Command {
 		Use:   "list",
 		Short: "Get a list of all users",
 		Run: func(cmd *cobra.Command, args []string) {
-			users := getUsers()
-			for _, user := range users {
-				fmt.Println(user.Name)
+			names := getUserNames()
+			for _, name := range names {
+				fmt.Println(name)
 			}
 		},
 	}
@@ -95,20 +89,17 @@ func set() *cobra.Command {
 			username := args[0]
 
 			// get user
-			user := api.User{Name: username}
-
-			resp, err := shared.Client().GetUsersName(context.Background(), username)
-			if err != nil || (resp.StatusCode != http.StatusOK &&
-				resp.StatusCode != http.StatusNotFound) {
-				shared.Die(err, "get user by name request failed")
-			}
-
-			data, err := api.ParseGetUsersNameResponse(resp)
+			user, err := shared.Client().UsersNameGet(context.Background(), api.UsersNameGetParams{
+				Name: api.UserName(username),
+			})
 			if err != nil {
-				shared.Die(err, "could not parse get user by name response")
-			}
-			if data.JSON200 != nil {
-				user = *data.JSON200
+				if shared.Is404(err) {
+					user = &api.User{
+						ID: api.UserName(username),
+					}
+				} else {
+					shared.Die(err, "get user by name request failed")
+				}
 			}
 
 			// for each flag: if set, apply value to user
@@ -139,13 +130,11 @@ func set() *cobra.Command {
 			})
 
 			// post changed user
-
-			resp, err = shared.Client().PostUsers(context.Background(), user)
-			if err != nil || resp.StatusCode != http.StatusOK {
+			if err := shared.Client().UsersPost(context.Background(), api.NewOptUser(*user)); err != nil {
 				shared.Die(err, "post user request failed")
 			}
 
-			prettyPrintUser(&user)
+			prettyPrintUser(user)
 		},
 	}
 
@@ -179,17 +168,14 @@ func get() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			username := args[0]
 
-			resp, err := shared.Client().GetUsersName(context.Background(), username)
-			if err != nil || resp.StatusCode != http.StatusOK {
+			user, err := shared.Client().UsersNameGet(context.Background(), api.UsersNameGetParams{
+				Name: api.UserName(username),
+			})
+			if err != nil {
 				shared.Die(err, "get user by name request failed")
 			}
 
-			data, err := api.ParseGetUsersNameResponse(resp)
-			if err != nil {
-				shared.Die(err, "could not parse get user by name response")
-			}
-
-			prettyPrintUser(data.JSON200)
+			prettyPrintUser(user)
 		},
 	}
 
@@ -205,8 +191,9 @@ func del() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			username := args[0]
 
-			resp, err := shared.Client().DeleteUsersName(context.Background(), username)
-			if err != nil || resp.StatusCode != http.StatusOK {
+			if err := shared.Client().UsersNameDelete(context.Background(), api.UsersNameDeleteParams{
+				Name: api.UserName(username),
+			}); err != nil {
 				shared.Die(err, "delete user request failed")
 			}
 

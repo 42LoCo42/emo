@@ -3,8 +3,7 @@ package util
 import (
 	"context"
 	"encoding/base64"
-	"errors"
-	"net/http"
+	"io/ioutil"
 
 	"github.com/42LoCo42/emo/api"
 	"github.com/jamesruan/sodium"
@@ -20,21 +19,16 @@ func Login(
 ) {
 	key := MakeKey(username, password)
 
-	raw, err := client.GetLoginUser(context.Background(), string(username))
+	res, err := client.LoginUserGet(context.Background(), api.LoginUserGetParams{
+		User: api.UserName(username),
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	if raw.StatusCode != http.StatusOK {
-		return nil, errors.New("login request failed")
-	}
-
-	resp, err := api.ParseGetLoginUserResponse(raw)
-	if err != nil {
-		return nil, err
-	}
-
-	encrypted, err := base64.StdEncoding.DecodeString(string(resp.Body))
+	encrypted, err := ioutil.ReadAll(
+		base64.NewDecoder(base64.StdEncoding, res.Data),
+	)
 	if err != nil {
 		return nil, err
 	}
