@@ -3,7 +3,6 @@
 *.opus
 
 # automatically generated
-/api
 /result
 /.direnv
 songs

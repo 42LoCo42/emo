@@ -18,7 +18,6 @@
           names));
 
         nativeBuildInputs = with pkgs; [
-          oapi-codegen
           pkg-config
         ];
 
@@ -39,11 +38,11 @@
           pname = "emo";
           version = "1.0.0-indev";
           src = ./.;
-          vendorSha256 = "sha256-LP0VPGzvkHAhUyfsf9JnyRUHYYmHBLKaAGTH3u9Ekk4=";
+          vendorSha256 = "sha256-srsgCS/2dYR6WesjMQ+dgtwBc2FyIzyQWXTaiDVM3sg=";
 
           inherit nativeBuildInputs buildInputs;
 
-          prePatch = "bash generate.sh";
+          # prePatch = "bash generate.sh";
         };
 
         apps = mkApps [ "cli" "daemon" "server" ];

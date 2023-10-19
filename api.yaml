@@ -304,7 +304,7 @@ paths:
         '200':
           description: The contents of the song
           content:
-            application/octet-stream:
+            "*/*":
               schema:
                 $ref: '#/components/schemas/SongFile'
         default:
